@@ -68,6 +68,13 @@ export function FloorMapPage() {
     };
   }, [campusSlug, buildingSlug, floorSlug, t]);
 
+  // Clear selection when the selected feature's type is no longer visible
+  useEffect(() => {
+    if (selected && !activeTypes.has(selected.type)) {
+      setSelected(null);
+    }
+  }, [selected, activeTypes]);
+
   const visibleTypeList = useMemo(() => {
     if (!floor) return [] as string[];
     const present = new Set(floor.features.map((f) => f.type));
@@ -117,6 +124,8 @@ export function FloorMapPage() {
           <MapCanvas
             planUrl={floor.plan!.url}
             mimeType={floor.plan!.mimeType}
+            planWidth={floor.plan!.width}
+            planHeight={floor.plan!.height}
             features={floor.features}
             visibleTypes={activeTypes}
             onSelectFeature={setSelected}
@@ -135,6 +144,7 @@ export function FloorMapPage() {
         onApplyPreset={applyPreset}
         onToggleType={toggleType}
         allTypes={FEATURE_TYPES}
+        featureSelected={selected != null}
       />
     </section>
   );

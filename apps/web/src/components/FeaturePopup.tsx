@@ -23,7 +23,8 @@ export function FeaturePopup({ feature, onClose }: FeaturePopupProps) {
         left: "0.75rem",
         right: "0.75rem",
         bottom: "0.75rem",
-        zIndex: 20,
+        /* Above Layers FAB (z-index 40) so close control is not covered on mobile */
+        zIndex: 45,
         background: "#fff",
         borderRadius: 10,
         border: "1px solid #e2e2e5",

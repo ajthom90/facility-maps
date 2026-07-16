@@ -11,6 +11,8 @@ export type LayerPanelProps = {
   onApplyPreset: (slug: string) => void;
   onToggleType: (type: string) => void;
   allTypes?: readonly string[];
+  /** When true, shift the mobile FAB so it does not cover FeaturePopup close. */
+  featureSelected?: boolean;
 };
 
 export function LayerPanel({
@@ -20,6 +22,7 @@ export function LayerPanel({
   onApplyPreset,
   onToggleType,
   allTypes = FEATURE_TYPES,
+  featureSelected = false,
 }: LayerPanelProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -129,7 +132,8 @@ export function LayerPanel({
           onClick={() => setOpen(true)}
           style={{
             position: "fixed",
-            bottom: "1rem",
+            /* When a feature popup is open, raise FAB above popup area */
+            bottom: featureSelected ? "7.5rem" : "1rem",
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 40,

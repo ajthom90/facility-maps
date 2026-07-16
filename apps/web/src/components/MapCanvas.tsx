@@ -1,4 +1,10 @@
-import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type WheelEvent as ReactWheelEvent,
+} from "react";
 import type { MapFeature } from "../types";
 import { asFeatureGeometry, isPointGeometry, isPolygonGeometry } from "../lib/geometry";
 import { colorForType } from "../lib/featureStyle";
@@ -6,6 +12,10 @@ import { colorForType } from "../lib/featureStyle";
 export type MapCanvasProps = {
   planUrl: string | null;
   mimeType: string | null;
+  /** Plan pixel width when known; used for aspect-ratio of the plan box. */
+  planWidth?: number | null;
+  /** Plan pixel height when known; used for aspect-ratio of the plan box. */
+  planHeight?: number | null;
   features: MapFeature[];
   visibleTypes: Set<string>;
   onSelectFeature: (feature: MapFeature | null) => void;
@@ -18,12 +28,28 @@ type ViewState = {
   y: number;
 };
 
+type PointerSample = {
+  id: number;
+  x: number;
+  y: number;
+};
+
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 8;
 
+function distanceBetween(a: PointerSample, b: PointerSample): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function midpoint(a: PointerSample, b: PointerSample): { x: number; y: number } {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
 export function MapCanvas({
   planUrl,
-  mimeType,
+  mimeType: _mimeType,
+  planWidth = null,
+  planHeight = null,
   features,
   visibleTypes,
   onSelectFeature,
@@ -31,6 +57,11 @@ export function MapCanvas({
 }: MapCanvasProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<ViewState>({ scale: 1, x: 0, y: 0 });
+  const viewRef = useRef(view);
+  viewRef.current = view;
+
+  /** Active pointers by id — multi-pointer tracking for pan vs pinch. */
+  const pointersRef = useRef<Map<number, PointerSample>>(new Map());
   const dragRef = useRef<{
     pointerId: number;
     startX: number;
@@ -42,9 +73,33 @@ export function MapCanvas({
   const pinchRef = useRef<{
     distance: number;
     scale: number;
+    midX: number;
+    midY: number;
+    originX: number;
+    originY: number;
   } | null>(null);
 
   const clampScale = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
+
+  const aspectRatio =
+    planWidth != null && planHeight != null && planWidth > 0 && planHeight > 0
+      ? `${planWidth} / ${planHeight}`
+      : "4 / 3";
+
+  const seedPinch = useCallback((a: PointerSample, b: PointerSample) => {
+    const mid = midpoint(a, b);
+    const el = viewportRef.current;
+    const rect = el?.getBoundingClientRect();
+    const v = viewRef.current;
+    pinchRef.current = {
+      distance: distanceBetween(a, b),
+      scale: v.scale,
+      midX: rect ? mid.x - rect.left : mid.x,
+      midY: rect ? mid.y - rect.top : mid.y,
+      originX: v.x,
+      originY: v.y,
+    };
+  }, []);
 
   const onWheel = useCallback((e: ReactWheelEvent) => {
     e.preventDefault();
@@ -69,91 +124,131 @@ export function MapCanvas({
   const onPointerDown = useCallback(
     (e: ReactPointerEvent) => {
       if (e.pointerType === "mouse" && e.button !== 0) return;
+
+      const sample: PointerSample = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      pointersRef.current.set(e.pointerId, sample);
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+
+      const pointers = [...pointersRef.current.values()];
+
+      if (pointers.length >= 2) {
+        // Multi-touch: cancel pan, start/continue pinch
+        dragRef.current = null;
+        seedPinch(pointers[0], pointers[1]);
+        return;
+      }
+
+      // Single pointer: start pan
+      pinchRef.current = null;
+      const v = viewRef.current;
       dragRef.current = {
         pointerId: e.pointerId,
         startX: e.clientX,
         startY: e.clientY,
-        originX: view.x,
-        originY: view.y,
+        originX: v.x,
+        originY: v.y,
         moved: false,
       };
     },
-    [view.x, view.y],
+    [seedPinch],
   );
 
-  const onPointerMove = useCallback((e: ReactPointerEvent) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== e.pointerId) return;
-    const dx = e.clientX - drag.startX;
-    const dy = e.clientY - drag.startY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      drag.moved = true;
-    }
-    setView((prev) => ({
-      ...prev,
-      x: drag.originX + dx,
-      y: drag.originY + dy,
-    }));
-  }, []);
-
-  const onPointerUp = useCallback(
+  const onPointerMove = useCallback(
     (e: ReactPointerEvent) => {
+      if (!pointersRef.current.has(e.pointerId)) return;
+      pointersRef.current.set(e.pointerId, {
+        id: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+      });
+
+      const pointers = [...pointersRef.current.values()];
+
+      // Two or more pointers: pinch only, never pan
+      if (pointers.length >= 2) {
+        dragRef.current = null;
+        const [a, b] = pointers;
+        const d = distanceBetween(a, b);
+        if (!pinchRef.current || pinchRef.current.distance <= 0) {
+          seedPinch(a, b);
+          return;
+        }
+
+        const ratio = d / pinchRef.current.distance;
+        const nextScale = clampScale(pinchRef.current.scale * ratio);
+        const scaleRatio = nextScale / pinchRef.current.scale;
+        const mx = pinchRef.current.midX;
+        const my = pinchRef.current.midY;
+        // Zoom toward initial pinch midpoint
+        const nextX = mx - (mx - pinchRef.current.originX) * scaleRatio;
+        const nextY = my - (my - pinchRef.current.originY) * scaleRatio;
+        setView({ scale: nextScale, x: nextX, y: nextY });
+        return;
+      }
+
+      // Single pointer pan
       const drag = dragRef.current;
-      if (drag && drag.pointerId === e.pointerId) {
-        if (!drag.moved) {
-          // Click on empty canvas clears selection (feature buttons stopPropagation)
+      if (!drag || drag.pointerId !== e.pointerId) return;
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        drag.moved = true;
+      }
+      setView((prev) => ({
+        ...prev,
+        x: drag.originX + dx,
+        y: drag.originY + dy,
+      }));
+    },
+    [seedPinch],
+  );
+
+  const endPointer = useCallback(
+    (e: ReactPointerEvent) => {
+      const hadDrag = dragRef.current;
+      const wasPanPointer = hadDrag && hadDrag.pointerId === e.pointerId;
+      const moved = wasPanPointer ? hadDrag.moved : true;
+
+      pointersRef.current.delete(e.pointerId);
+
+      const remaining = [...pointersRef.current.values()];
+
+      if (remaining.length >= 2) {
+        // Still multi-touch: re-seed pinch baseline from current view
+        dragRef.current = null;
+        seedPinch(remaining[0], remaining[1]);
+      } else if (remaining.length === 1) {
+        // Dropped out of pinch into single finger: start a fresh pan
+        pinchRef.current = null;
+        const p = remaining[0];
+        const v = viewRef.current;
+        dragRef.current = {
+          pointerId: p.id,
+          startX: p.x,
+          startY: p.y,
+          originX: v.x,
+          originY: v.y,
+          moved: true, // don't treat as click after pinch
+        };
+      } else {
+        // No pointers left
+        pinchRef.current = null;
+        if (wasPanPointer && !moved) {
           onSelectFeature(null);
         }
         dragRef.current = null;
       }
+
       try {
         (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
       } catch {
         /* already released */
       }
     },
-    [onSelectFeature],
+    [onSelectFeature, seedPinch],
   );
-
-  const onTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      if (e.touches.length === 2) {
-        const d = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY,
-        );
-        pinchRef.current = { distance: d, scale: view.scale };
-        dragRef.current = null;
-      }
-    },
-    [view.scale],
-  );
-
-  const onTouchMove = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2 && pinchRef.current) {
-      e.preventDefault();
-      const d = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY,
-      );
-      const ratio = d / pinchRef.current.distance;
-      const nextScale = clampScale(pinchRef.current.scale * ratio);
-      setView((prev) => ({ ...prev, scale: nextScale }));
-    }
-  }, []);
-
-  const onTouchEnd = useCallback(() => {
-    if (pinchRef.current) {
-      pinchRef.current = null;
-    }
-  }, []);
 
   const visibleFeatures = features.filter((f) => visibleTypes.has(f.type));
-
-  const isSvg =
-    mimeType === "image/svg+xml" ||
-    (planUrl != null && planUrl.toLowerCase().endsWith(".svg"));
 
   return (
     <div
@@ -163,11 +258,8 @@ export function MapCanvas({
       onWheel={onWheel}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
+      onPointerUp={endPointer}
+      onPointerCancel={endPointer}
       style={{
         position: "relative",
         width: "100%",
@@ -202,52 +294,23 @@ export function MapCanvas({
             width: "100%",
             maxWidth: "100%",
             maxHeight: "100%",
-            aspectRatio:
-              /* prefer plan-filled box; fallback square-ish landscape */
-              "4 / 3",
+            aspectRatio,
           }}
         >
           {planUrl ? (
-            isSvg ? (
-              <object
-                data={planUrl}
-                type="image/svg+xml"
-                aria-label="Floor plan"
-                style={{
-                  display: "block",
-                  width: "100%",
-                  height: "100%",
-                  pointerEvents: "none",
-                  objectFit: "contain",
-                }}
-              >
-                <img
-                  src={planUrl}
-                  alt="Floor plan"
-                  draggable={false}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                    pointerEvents: "none",
-                  }}
-                />
-              </object>
-            ) : (
-              <img
-                src={planUrl}
-                alt="Floor plan"
-                draggable={false}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "contain",
-                  pointerEvents: "none",
-                }}
-              />
-            )
+            <img
+              src={planUrl}
+              alt="Floor plan"
+              draggable={false}
+              style={{
+                display: "block",
+                width: "100%",
+                height: "100%",
+                /* Stretch to the plan box so 0–1 overlay coords match the image. */
+                objectFit: "fill",
+                pointerEvents: "none",
+              }}
+            />
           ) : null}
 
           {/* Polygon overlay — normalized viewBox 0 0 1 1 */}
