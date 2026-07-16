@@ -103,6 +103,12 @@ describe("auth", () => {
     expect(setCookie).toMatch(/facility_maps_session=/);
     expect(setCookie!.toLowerCase()).toMatch(/httponly/);
     expect(setCookie!.toLowerCase()).toMatch(/samesite=lax/);
+    // COOKIE_SECURE defaults to false (tests / plain HTTP). Secure only when env is true.
+    if (process.env.COOKIE_SECURE === "true") {
+      expect(setCookie!.toLowerCase()).toMatch(/secure/);
+    } else {
+      expect(setCookie!.toLowerCase()).not.toMatch(/;\s*secure(?:;|$)/);
+    }
 
     const cookie = cookieHeaderFromSetCookie(setCookie);
     const me = await app.request("/api/auth/me", {

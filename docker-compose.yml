@@ -22,7 +22,10 @@ services:
     environment:
       PORT: 3000
       DATABASE_URL: postgres://facility:facility@db:5432/facility_maps
-      SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
+      # Required: set a long random string in .env (no weak default; production rejects placeholders)
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env — see .env.example}
+      # false for plain HTTP (default Compose). Set true when serving over HTTPS.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       ADMIN_BOOTSTRAP_USERNAME: ${ADMIN_BOOTSTRAP_USERNAME:-admin}
       ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-changeme}
       UPLOAD_DIR: /data/uploads

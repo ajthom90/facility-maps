@@ -50,7 +50,8 @@ function cookieOptions() {
     httpOnly: true,
     path: "/",
     sameSite: "Lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    // COOKIE_SECURE env (default false). Set true behind HTTPS; false for plain HTTP.
+    secure: env.COOKIE_SECURE,
   };
 }
 

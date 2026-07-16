@@ -13,7 +13,11 @@ Self-hosted open-source web app for interactive campus facility safety maps. Pub
 
 ## Quick start (Docker Compose)
 
+Copy env defaults and set a strong session secret (required — Compose will not start without it):
+
 ```bash
+cp .env.example .env
+# Edit .env: set SESSION_SECRET to a long random string (not a placeholder)
 docker compose up --build
 ```
 
@@ -30,7 +34,9 @@ Default bootstrap admin (first empty DB only):
 | `ADMIN_BOOTSTRAP_USERNAME` | `admin` |
 | `ADMIN_BOOTSTRAP_PASSWORD` | `changeme` |
 
-Change `SESSION_SECRET` and bootstrap credentials before any real deployment.
+**Before any real deployment:** set a unique `SESSION_SECRET` (16+ characters; not a known placeholder) and change bootstrap credentials. Production (`NODE_ENV=production`) refuses to start with a missing, short, or default secret.
+
+**Cookies and HTTPS:** Compose defaults to `COOKIE_SECURE=false` so admin login works over plain HTTP on internal networks. When you terminate TLS / serve over HTTPS, set `COOKIE_SECURE=true` so session cookies are only sent on secure connections.
 
 ## Development
 
@@ -68,7 +74,8 @@ npm test
 |----------|-------------|-----------------|
 | `PORT` | HTTP port | `3000` |
 | `DATABASE_URL` | Postgres connection string | `postgres://facility:facility@localhost:5432/facility_maps` |
-| `SESSION_SECRET` | Signs admin session cookies | **Required in production** |
+| `SESSION_SECRET` | Signs admin session cookies | **Required** for Compose and production. Min 16 chars; rejects known defaults (`change-me-in-production`, `dev-only-change-me`, …) when `NODE_ENV=production` |
+| `COOKIE_SECURE` | Set `Secure` on session cookies | `false` (Compose / `.env.example`). Use `true` behind HTTPS; `false` for plain HTTP internal deploys |
 | `ADMIN_BOOTSTRAP_USERNAME` | Create first admin if table empty | empty = skip bootstrap |
 | `ADMIN_BOOTSTRAP_PASSWORD` | Password for bootstrap user | empty = skip bootstrap |
 | `UPLOAD_DIR` | Floor plan upload directory | `./data/uploads` (Docker: `/data/uploads`) |
@@ -76,6 +83,15 @@ npm test
 | `WEB_DIST` | **Relative** path from process cwd to built web assets | empty = API only; Docker: `apps/web/dist` |
 
 `WEB_DIST` must be relative (e.g. `apps/web/dist`). Absolute paths are not supported by the static file server.
+
+### Plain HTTP vs HTTPS
+
+| Deploy mode | `COOKIE_SECURE` |
+|-------------|-----------------|
+| Plain HTTP (LAN / reverse-proxy TLS offload not terminating at app, internal only) | `false` |
+| HTTPS (TLS to the app or cookies only on HTTPS paths) | `true` |
+
+If `COOKIE_SECURE=true` while you only access the app via `http://`, browsers will not store the admin session cookie and login will appear to fail.
 
 ## Production image
 

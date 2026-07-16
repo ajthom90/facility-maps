@@ -67,9 +67,16 @@ export function uploadsRoutes(uploadDir: string) {
 
     try {
       const data = await fs.readFile(absolute);
-      return c.body(data, 200, {
-        "Content-Type": contentTypeFor(absolute),
-      });
+      const contentType = contentTypeFor(absolute);
+      const headers: Record<string, string> = {
+        "Content-Type": contentType,
+        "X-Content-Type-Options": "nosniff",
+      };
+      // Mitigate stored XSS if a browser ever sniffs or executes SVG scripts
+      if (contentType === "image/svg+xml") {
+        headers["Content-Security-Policy"] = "script-src 'none'; sandbox";
+      }
+      return c.body(data, 200, headers);
     } catch {
       return c.json({ error: "Not found" }, 404);
     }
