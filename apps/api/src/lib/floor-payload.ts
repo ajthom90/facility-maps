@@ -2,6 +2,16 @@ import { asc, eq } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { features, floorPlans, floors } from "../db/schema.js";
 
+/** Encode each path segment for `/api/uploads/...` URLs. */
+export function planFileUrl(filePath: string): string {
+  const encoded = filePath
+    .split("/")
+    .filter(Boolean)
+    .map((seg) => encodeURIComponent(seg))
+    .join("/");
+  return `/api/uploads/${encoded}`;
+}
+
 export type FloorPayload = {
   id: string;
   name: string;
@@ -63,7 +73,7 @@ export async function buildFloorPayload(
     plan: plan
       ? {
           id: plan.id,
-          url: `/api/uploads/${plan.filePath}`,
+          url: planFileUrl(plan.filePath),
           mimeType: plan.mimeType,
           width: plan.width,
           height: plan.height,
