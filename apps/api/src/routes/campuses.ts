@@ -1,0 +1,146 @@
+import { and, asc, eq } from "drizzle-orm";
+import { Hono } from "hono";
+import type { Db } from "../db/client.js";
+import { buildings, campuses, floors } from "../db/schema.js";
+import { buildFloorPayload } from "../lib/floor-payload.js";
+
+export function campusesRoutes(getDb: () => Db) {
+  const app = new Hono();
+
+  app.get("/", async (c) => {
+    const rows = await getDb()
+      .select({
+        id: campuses.id,
+        name: campuses.name,
+        slug: campuses.slug,
+        sortOrder: campuses.sortOrder,
+      })
+      .from(campuses)
+      .orderBy(asc(campuses.sortOrder), asc(campuses.name));
+
+    return c.json({ campuses: rows });
+  });
+
+  app.get("/:slug", async (c) => {
+    const slug = c.req.param("slug");
+    const [campus] = await getDb()
+      .select()
+      .from(campuses)
+      .where(eq(campuses.slug, slug))
+      .limit(1);
+
+    if (!campus) {
+      return c.json({ error: "Campus not found" }, 404);
+    }
+
+    const buildingRows = await getDb()
+      .select({
+        id: buildings.id,
+        name: buildings.name,
+        slug: buildings.slug,
+        sortOrder: buildings.sortOrder,
+      })
+      .from(buildings)
+      .where(eq(buildings.campusId, campus.id))
+      .orderBy(asc(buildings.sortOrder), asc(buildings.name));
+
+    return c.json({
+      id: campus.id,
+      name: campus.name,
+      slug: campus.slug,
+      sortOrder: campus.sortOrder,
+      buildings: buildingRows,
+    });
+  });
+
+  app.get("/:campusSlug/buildings/:buildingSlug", async (c) => {
+    const campusSlug = c.req.param("campusSlug");
+    const buildingSlug = c.req.param("buildingSlug");
+    const db = getDb();
+
+    const [campus] = await db
+      .select({ id: campuses.id })
+      .from(campuses)
+      .where(eq(campuses.slug, campusSlug))
+      .limit(1);
+
+    if (!campus) {
+      return c.json({ error: "Campus not found" }, 404);
+    }
+
+    const [building] = await db
+      .select()
+      .from(buildings)
+      .where(and(eq(buildings.campusId, campus.id), eq(buildings.slug, buildingSlug)))
+      .limit(1);
+
+    if (!building) {
+      return c.json({ error: "Building not found" }, 404);
+    }
+
+    const floorRows = await db
+      .select({
+        id: floors.id,
+        name: floors.name,
+        slug: floors.slug,
+        level: floors.level,
+        sortOrder: floors.sortOrder,
+      })
+      .from(floors)
+      .where(eq(floors.buildingId, building.id))
+      .orderBy(asc(floors.sortOrder), asc(floors.level));
+
+    return c.json({
+      id: building.id,
+      name: building.name,
+      slug: building.slug,
+      sortOrder: building.sortOrder,
+      floors: floorRows,
+    });
+  });
+
+  app.get("/:campusSlug/buildings/:buildingSlug/floors/:floorSlug", async (c) => {
+    const campusSlug = c.req.param("campusSlug");
+    const buildingSlug = c.req.param("buildingSlug");
+    const floorSlug = c.req.param("floorSlug");
+    const db = getDb();
+
+    const [campus] = await db
+      .select({ id: campuses.id })
+      .from(campuses)
+      .where(eq(campuses.slug, campusSlug))
+      .limit(1);
+
+    if (!campus) {
+      return c.json({ error: "Campus not found" }, 404);
+    }
+
+    const [building] = await db
+      .select({ id: buildings.id })
+      .from(buildings)
+      .where(and(eq(buildings.campusId, campus.id), eq(buildings.slug, buildingSlug)))
+      .limit(1);
+
+    if (!building) {
+      return c.json({ error: "Building not found" }, 404);
+    }
+
+    const [floor] = await db
+      .select({ id: floors.id })
+      .from(floors)
+      .where(and(eq(floors.buildingId, building.id), eq(floors.slug, floorSlug)))
+      .limit(1);
+
+    if (!floor) {
+      return c.json({ error: "Floor not found" }, 404);
+    }
+
+    const payload = await buildFloorPayload(db, floor.id);
+    if (!payload) {
+      return c.json({ error: "Floor not found" }, 404);
+    }
+    return c.json(payload);
+  });
+
+  return app;
+}

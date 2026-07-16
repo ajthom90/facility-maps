@@ -1,0 +1,258 @@
+/**
+ * Public read API integration tests.
+ *
+ * Requires Postgres (Docker Compose `db` service is fine):
+ *   DATABASE_URL=postgres://facility:facility@localhost:5432/facility_maps
+ *
+ * Migrations + seed run in beforeAll when missing data.
+ */
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { eq } from "drizzle-orm";
+import { createApp } from "../src/app.js";
+import { createDb, type Db } from "../src/db/client.js";
+import { runMigrations } from "../src/db/migrate.js";
+import { seed } from "../src/db/seed.js";
+import { env } from "../src/lib/env.js";
+import {
+  buildings,
+  campuses,
+  features,
+  floorPlans,
+  floors,
+} from "../src/db/schema.js";
+
+const DATABASE_URL = process.env.DATABASE_URL ?? env.DATABASE_URL;
+
+describe("public APIs", () => {
+  let db: Db;
+  let app: ReturnType<typeof createApp>;
+  let uploadDir: string;
+  let campusSlug: string;
+  let buildingSlug: string;
+  let floorSlug: string;
+  let floorId: string;
+  let planRelativePath: string;
+
+  beforeAll(async () => {
+    await runMigrations(DATABASE_URL);
+    db = createDb(DATABASE_URL);
+    await seed(db);
+
+    uploadDir = await fs.mkdtemp(path.join(os.tmpdir(), "fm-uploads-"));
+    planRelativePath = "plans/test-plan.png";
+    const planAbs = path.join(uploadDir, planRelativePath);
+    await fs.mkdir(path.dirname(planAbs), { recursive: true });
+    await fs.writeFile(planAbs, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+
+    // Ensure a building + floor + plan + feature exist under a seeded campus
+    const [campus] = await db.select().from(campuses).where(eq(campuses.slug, "mankato")).limit(1);
+    if (!campus) throw new Error("expected seeded mankato campus");
+    campusSlug = campus.slug;
+
+    const existingBuildings = await db
+      .select()
+      .from(buildings)
+      .where(eq(buildings.campusId, campus.id))
+      .limit(1);
+
+    let building = existingBuildings[0];
+    if (!building) {
+      [building] = await db
+        .insert(buildings)
+        .values({ campusId: campus.id, name: "Main Hall", slug: "main-hall", sortOrder: 0 })
+        .returning();
+    }
+    buildingSlug = building.slug;
+
+    const existingFloors = await db
+      .select()
+      .from(floors)
+      .where(eq(floors.buildingId, building.id))
+      .limit(1);
+
+    let floor = existingFloors[0];
+    if (!floor) {
+      [floor] = await db
+        .insert(floors)
+        .values({
+          buildingId: building.id,
+          name: "Floor 1",
+          slug: "floor-1",
+          level: 1,
+          sortOrder: 0,
+        })
+        .returning();
+    }
+    floorSlug = floor.slug;
+    floorId = floor.id;
+
+    const existingPlan = await db
+      .select()
+      .from(floorPlans)
+      .where(eq(floorPlans.floorId, floor.id))
+      .limit(1);
+    if (existingPlan.length === 0) {
+      await db.insert(floorPlans).values({
+        floorId: floor.id,
+        filePath: planRelativePath,
+        mimeType: "image/png",
+        width: 100,
+        height: 80,
+      });
+    } else {
+      // Keep file path in sync with this test's uploadDir
+      await db
+        .update(floorPlans)
+        .set({ filePath: planRelativePath, mimeType: "image/png", width: 100, height: 80 })
+        .where(eq(floorPlans.floorId, floor.id));
+    }
+
+    const existingFeatures = await db
+      .select()
+      .from(features)
+      .where(eq(features.floorId, floor.id))
+      .limit(1);
+    if (existingFeatures.length === 0) {
+      await db.insert(features).values({
+        floorId: floor.id,
+        type: "exit",
+        geometry: { type: "point", x: 0.5, y: 0.5 },
+        label: "Main exit",
+        notes: null,
+      });
+    }
+
+    app = createApp({ db, uploadDir });
+  });
+
+  afterAll(async () => {
+    if (uploadDir) {
+      await fs.rm(uploadDir, { recursive: true, force: true });
+    }
+  });
+
+  it("lists seeded campuses", async () => {
+    const res = await app.request("/api/campuses");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const slugs = body.campuses.map((c: { slug: string }) => c.slug).sort();
+    expect(slugs).toEqual(["mankato", "waseca"]);
+    expect(body.campuses[0]).toMatchObject({
+      id: expect.any(String),
+      name: expect.any(String),
+      slug: expect.any(String),
+      sortOrder: expect.any(Number),
+    });
+  });
+
+  it("returns 404 for unknown campus", async () => {
+    const res = await app.request("/api/campuses/nope");
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: expect.any(String) });
+  });
+
+  it("returns campus with buildings", async () => {
+    const res = await app.request(`/api/campuses/${campusSlug}`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.slug).toBe(campusSlug);
+    expect(body.sortOrder).toEqual(expect.any(Number));
+    expect(Array.isArray(body.buildings)).toBe(true);
+    expect(body.buildings.some((b: { slug: string }) => b.slug === buildingSlug)).toBe(true);
+  });
+
+  it("returns building with floors", async () => {
+    const res = await app.request(
+      `/api/campuses/${campusSlug}/buildings/${buildingSlug}`
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.slug).toBe(buildingSlug);
+    expect(Array.isArray(body.floors)).toBe(true);
+    expect(body.floors.some((f: { slug: string }) => f.slug === floorSlug)).toBe(true);
+  });
+
+  it("returns 404 for unknown building", async () => {
+    const res = await app.request(`/api/campuses/${campusSlug}/buildings/nope`);
+    expect(res.status).toBe(404);
+  });
+
+  it("returns floor with plan and features by nested path", async () => {
+    const res = await app.request(
+      `/api/campuses/${campusSlug}/buildings/${buildingSlug}/floors/${floorSlug}`
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toMatchObject({
+      id: floorId,
+      slug: floorSlug,
+      level: expect.any(Number),
+      sortOrder: expect.any(Number),
+    });
+    expect(body.plan).toMatchObject({
+      id: expect.any(String),
+      url: `/api/uploads/${planRelativePath}`,
+      mimeType: "image/png",
+      width: 100,
+      height: 80,
+    });
+    expect(body.features.length).toBeGreaterThanOrEqual(1);
+    expect(body.features[0]).toMatchObject({
+      id: expect.any(String),
+      type: expect.any(String),
+      geometry: expect.any(Object),
+    });
+  });
+
+  it("returns same floor payload by id", async () => {
+    const res = await app.request(`/api/floors/${floorId}`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.id).toBe(floorId);
+    expect(body.plan?.url).toBe(`/api/uploads/${planRelativePath}`);
+  });
+
+  it("returns 404 for unknown floor id", async () => {
+    const res = await app.request(
+      "/api/floors/00000000-0000-0000-0000-000000000000"
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("lists layer presets including evacuation types", async () => {
+    const res = await app.request("/api/presets");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const evac = body.presets.find((p: { slug: string }) => p.slug === "evacuation");
+    expect(evac).toBeTruthy();
+    expect(evac.featureTypes).toEqual(
+      expect.arrayContaining(["exit", "safe_haven", "first_aid"])
+    );
+    expect(evac).toMatchObject({
+      id: expect.any(String),
+      slug: "evacuation",
+      sortOrder: expect.any(Number),
+    });
+  });
+
+  it("serves upload files with content type", async () => {
+    const res = await app.request(`/api/uploads/${planRelativePath}`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toMatch(/image\/png/);
+    const buf = Buffer.from(await res.arrayBuffer());
+    expect(buf[0]).toBe(0x89);
+  });
+
+  it("returns 404 for missing upload", async () => {
+    const res = await app.request("/api/uploads/missing/file.png");
+    expect(res.status).toBe(404);
+  });
+
+  it("rejects path traversal on uploads", async () => {
+    const res = await app.request("/api/uploads/../../etc/passwd");
+    expect(res.status).toBe(404);
+  });
+});
