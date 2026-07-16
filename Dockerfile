@@ -3,10 +3,10 @@
 
 FROM node:22-alpine AS deps
 WORKDIR /app
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/web/package.json ./apps/web/
-RUN npm install
+RUN npm ci
 
 FROM deps AS build
 WORKDIR /app
