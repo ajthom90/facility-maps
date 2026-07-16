@@ -4,8 +4,11 @@ import { env } from "./lib/env.js";
 import type { AdminVariables } from "./middleware/require-admin.js";
 import { adminBuildingsRoutes } from "./routes/admin/buildings.js";
 import { adminCampusesRoutes } from "./routes/admin/campuses.js";
+import { adminFeaturesRoutes } from "./routes/admin/features.js";
 import { adminFloorsRoutes } from "./routes/admin/floors.js";
 import { adminPlansRoutes } from "./routes/admin/plans.js";
+import { adminPresetsRoutes } from "./routes/admin/presets.js";
+import { adminUsersRoutes } from "./routes/admin/users.js";
 import { authRoutes } from "./routes/auth.js";
 import { campusesRoutes } from "./routes/campuses.js";
 import { floorsRoutes } from "./routes/floors.js";
@@ -35,6 +38,9 @@ export function createApp(options: CreateAppOptions = {}) {
   app.route("/api/admin/buildings", adminBuildingsRoutes(resolveDb));
   app.route("/api/admin/floors", adminFloorsRoutes(resolveDb));
   app.route("/api/admin/floors", adminPlansRoutes(resolveDb, uploadDir));
+  app.route("/api/admin/features", adminFeaturesRoutes(resolveDb));
+  app.route("/api/admin/users", adminUsersRoutes(resolveDb));
+  app.route("/api/admin/presets", adminPresetsRoutes(resolveDb));
   // TODO: serve static web from apps/web/dist (later task)
   return app;
 }
