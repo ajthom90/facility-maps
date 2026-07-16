@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { BuildingPage } from "./pages/BuildingPage";
 import { CampusPage } from "./pages/CampusPage";
+import { FloorMapPage } from "./pages/FloorMapPage";
 import { HomePage } from "./pages/HomePage";
 
 export function App() {
@@ -12,6 +13,10 @@ export function App() {
           <Route index element={<HomePage />} />
           <Route path=":campusSlug" element={<CampusPage />} />
           <Route path=":campusSlug/:buildingSlug" element={<BuildingPage />} />
+          <Route
+            path=":campusSlug/:buildingSlug/:floorSlug"
+            element={<FloorMapPage />}
+          />
         </Route>
       </Routes>
     </BrowserRouter>

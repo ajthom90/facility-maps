@@ -2,6 +2,8 @@ import type {
   BuildingDetail,
   CampusDetail,
   CampusesResponse,
+  FloorDetail,
+  PresetsResponse,
 } from "../types";
 
 async function getJson<T>(path: string): Promise<T> {
@@ -33,5 +35,23 @@ export const api = {
     return getJson<BuildingDetail>(
       `/api/campuses/${encodeURIComponent(campusSlug)}/buildings/${encodeURIComponent(buildingSlug)}`,
     );
+  },
+
+  getFloor(
+    campusSlug: string,
+    buildingSlug: string,
+    floorSlug: string,
+  ): Promise<FloorDetail> {
+    return getJson<FloorDetail>(
+      `/api/campuses/${encodeURIComponent(campusSlug)}/buildings/${encodeURIComponent(buildingSlug)}/floors/${encodeURIComponent(floorSlug)}`,
+    );
+  },
+
+  getFloorById(id: string): Promise<FloorDetail> {
+    return getJson<FloorDetail>(`/api/floors/${encodeURIComponent(id)}`);
+  },
+
+  getPresets(): Promise<PresetsResponse> {
+    return getJson<PresetsResponse>("/api/presets");
   },
 };
