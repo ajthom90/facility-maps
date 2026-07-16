@@ -3,6 +3,7 @@
   "campuses": "Campuses",
   "buildings": "Buildings",
   "floors": "Floors",
+  "emptyCampuses": "No campuses published",
   "emptyBuildings": "No buildings published",
   "emptyFloors": "No floors published",
   "emptyPlan": "Map not available yet",

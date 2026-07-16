@@ -37,36 +37,40 @@ export function HomePage() {
   return (
     <section>
       <h1 style={{ marginTop: 0 }}>{t("campuses")}</h1>
-      <ul
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(12rem, 1fr))",
-          gap: "1rem",
-          listStyle: "none",
-          padding: 0,
-          margin: 0,
-        }}
-      >
-        {campuses.map((campus) => (
-          <li key={campus.id}>
-            <Link
-              to={`/${campus.slug}`}
-              style={{
-                display: "block",
-                padding: "1.25rem",
-                background: "#fff",
-                border: "1px solid #e2e2e5",
-                borderRadius: 8,
-                textDecoration: "none",
-                color: "inherit",
-                fontWeight: 600,
-              }}
-            >
-              {campus.name}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {campuses.length === 0 ? (
+        <p>{t("emptyCampuses")}</p>
+      ) : (
+        <ul
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(12rem, 1fr))",
+            gap: "1rem",
+            listStyle: "none",
+            padding: 0,
+            margin: 0,
+          }}
+        >
+          {campuses.map((campus) => (
+            <li key={campus.id}>
+              <Link
+                to={`/${campus.slug}`}
+                style={{
+                  display: "block",
+                  padding: "1.25rem",
+                  background: "#fff",
+                  border: "1px solid #e2e2e5",
+                  borderRadius: 8,
+                  textDecoration: "none",
+                  color: "inherit",
+                  fontWeight: 600,
+                }}
+              >
+                {campus.name}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

@@ -28,6 +28,20 @@ const PRESET_SLUGS = [
 ] as const;
 
 describe("en.json i18n catalog", () => {
+  it("contains public empty-state keys", () => {
+    for (const key of [
+      "emptyCampuses",
+      "emptyBuildings",
+      "emptyFloors",
+      "emptyPlan",
+      "emptyFeatures",
+    ] as const) {
+      expect(en, `missing ${key}`).toHaveProperty(key);
+      expect(typeof en[key]).toBe("string");
+      expect(en[key].length).toBeGreaterThan(0);
+    }
+  });
+
   it("contains every FEATURE_TYPES key under featureTypes", () => {
     expect(en.featureTypes).toBeDefined();
     for (const type of FEATURE_TYPES) {

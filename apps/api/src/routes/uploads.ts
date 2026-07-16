@@ -38,13 +38,20 @@ export function uploadsRoutes(uploadDir: string) {
     const url = new URL(c.req.url);
     // Path may be full (/api/uploads/...) or relative when mounted
     const marker = "/api/uploads/";
-    let relative: string;
+    let raw: string;
     const idx = url.pathname.indexOf(marker);
     if (idx >= 0) {
-      relative = decodeURIComponent(url.pathname.slice(idx + marker.length));
+      raw = url.pathname.slice(idx + marker.length);
     } else {
       // Sub-app: pathname is typically /plans/foo.png when mounted
-      relative = decodeURIComponent(url.pathname.replace(/^\//, ""));
+      raw = url.pathname.replace(/^\//, "");
+    }
+
+    let relative: string;
+    try {
+      relative = decodeURIComponent(raw);
+    } catch {
+      return c.json({ error: "Not found" }, 400);
     }
 
     // Normalize URL-style separators; reject absolute / empty
