@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { getDb, type Db } from "./db/client.js";
 import { env } from "./lib/env.js";
+import type { AdminVariables } from "./middleware/require-admin.js";
+import { authRoutes } from "./routes/auth.js";
 import { campusesRoutes } from "./routes/campuses.js";
 import { floorsRoutes } from "./routes/floors.js";
 import { healthRoutes } from "./routes/health.js";
@@ -18,8 +20,9 @@ export function createApp(options: CreateAppOptions = {}) {
   const resolveDb = (): Db => options.db ?? getDb();
   const uploadDir = options.uploadDir ?? env.UPLOAD_DIR;
 
-  const app = new Hono();
+  const app = new Hono<{ Variables: AdminVariables }>();
   app.route("/api/health", healthRoutes);
+  app.route("/api/auth", authRoutes(resolveDb));
   app.route("/api/campuses", campusesRoutes(resolveDb));
   app.route("/api/floors", floorsRoutes(resolveDb));
   app.route("/api/presets", presetsRoutes(resolveDb));
