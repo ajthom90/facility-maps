@@ -1,0 +1,10 @@
+{
+  "name": "facility-maps",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "npm run dev -w @facility-maps/api & npm run dev -w @facility-maps/web",
+    "test": "npm run test -w @facility-maps/api && npm run test -w @facility-maps/web",
+    "build": "npm run build -w @facility-maps/api && npm run build -w @facility-maps/web"
+  }
+}
