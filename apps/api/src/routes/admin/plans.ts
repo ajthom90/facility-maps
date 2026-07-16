@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import type { Db } from "../../db/client.js";
 import { floorPlans, floors } from "../../db/schema.js";
 import { env } from "../../lib/env.js";
+import { planFileUrl } from "../../lib/floor-payload.js";
 import {
   requireAdmin,
   type AdminVariables,
@@ -86,6 +87,8 @@ export function adminPlansRoutes(getDb: () => Db, uploadDir: string) {
     const absoluteDir = path.join(uploadDir, floorId);
     const absolutePath = path.join(absoluteDir, filename);
 
+    // Write new file first so a failed DB update never leaves the row pointing
+    // at a deleted path. Unlink the previous file only after DB succeeds.
     await fs.mkdir(absoluteDir, { recursive: true });
     await fs.writeFile(absolutePath, buffer);
 
@@ -96,33 +99,42 @@ export function adminPlansRoutes(getDb: () => Db, uploadDir: string) {
       .limit(1);
 
     let plan;
+    try {
+      if (existing) {
+        const [updated] = await db
+          .update(floorPlans)
+          .set({
+            filePath: relativePath,
+            mimeType,
+            width: null,
+            height: null,
+            uploadedAt: new Date(),
+          })
+          .where(eq(floorPlans.floorId, floorId))
+          .returning();
+        plan = updated;
+      } else {
+        const [inserted] = await db
+          .insert(floorPlans)
+          .values({
+            floorId,
+            filePath: relativePath,
+            mimeType,
+          })
+          .returning();
+        plan = inserted;
+      }
+    } catch (err) {
+      // DB failed after write — remove the orphan new file
+      await fs.unlink(absolutePath).catch(() => undefined);
+      throw err;
+    }
+
     if (existing) {
       const oldAbs = path.join(uploadDir, ...existing.filePath.split("/"));
       if (oldAbs !== absolutePath) {
         await fs.unlink(oldAbs).catch(() => undefined);
       }
-      const [updated] = await db
-        .update(floorPlans)
-        .set({
-          filePath: relativePath,
-          mimeType,
-          width: null,
-          height: null,
-          uploadedAt: new Date(),
-        })
-        .where(eq(floorPlans.floorId, floorId))
-        .returning();
-      plan = updated;
-    } else {
-      const [inserted] = await db
-        .insert(floorPlans)
-        .values({
-          floorId,
-          filePath: relativePath,
-          mimeType,
-        })
-        .returning();
-      plan = inserted;
     }
 
     return c.json(
@@ -134,7 +146,7 @@ export function adminPlansRoutes(getDb: () => Db, uploadDir: string) {
         width: plan.width,
         height: plan.height,
         uploadedAt: plan.uploadedAt,
-        url: planUrl(plan.filePath),
+        url: planFileUrl(plan.filePath),
       },
       201
     );
@@ -151,14 +163,4 @@ function resolveMimeType(file: File): string | null {
   const name = file.name || "";
   const ext = path.extname(name).toLowerCase();
   return MIME_BY_EXT[ext] ?? null;
-}
-
-/** Public URL for a stored plan path (path segments encoded). */
-export function planUrl(filePath: string): string {
-  const encoded = filePath
-    .split("/")
-    .filter(Boolean)
-    .map((seg) => encodeURIComponent(seg))
-    .join("/");
-  return `/api/uploads/${encoded}`;
 }
