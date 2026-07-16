@@ -1,5 +1,4 @@
-# Multi-stage build: install workspaces, build API + web, run API.
-# Static web serving from apps/web/dist is added in a later task.
+# Multi-stage build: install workspaces, build web + API, run API serving static UI.
 
 FROM node:22-alpine AS deps
 WORKDIR /app
@@ -19,12 +18,19 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+# Relative to WORKDIR /app — serveStatic does not support absolute roots
+ENV WEB_DIST=apps/web/dist
+ENV UPLOAD_DIR=/data/uploads
+
+COPY package.json package-lock.json ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
+RUN npm ci --omit=dev
+
 COPY --from=build /app/apps/api/dist ./apps/api/dist
-COPY --from=build /app/apps/api/package.json ./apps/api/package.json
-COPY --from=build /app/package.json ./package.json
-# Placeholder: web dist will be copied and served by API in a later task
-# COPY --from=build /app/apps/web/dist ./apps/web/dist
+# Startup runs drizzle migrate — folder must exist next to dist (../../drizzle from dist/db)
+COPY --from=build /app/apps/api/drizzle ./apps/api/drizzle
+COPY --from=build /app/apps/web/dist ./apps/web/dist
+
 EXPOSE 3000
 CMD ["node", "apps/api/dist/index.js"]

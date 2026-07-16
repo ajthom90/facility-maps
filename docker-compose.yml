@@ -26,6 +26,8 @@ services:
       ADMIN_BOOTSTRAP_USERNAME: ${ADMIN_BOOTSTRAP_USERNAME:-admin}
       ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-changeme}
       UPLOAD_DIR: /data/uploads
+      # Relative to container WORKDIR /app (must match Dockerfile ENV)
+      WEB_DIST: apps/web/dist
     volumes:
       - uploads:/data/uploads
     depends_on:

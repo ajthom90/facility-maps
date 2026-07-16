@@ -97,6 +97,26 @@ export function AdminLayout() {
             >
               {t("structure")}
             </NavLink>
+            <NavLink
+              to="/admin/users"
+              style={({ isActive }) => ({
+                textDecoration: "none",
+                color: isActive ? "#1d4ed8" : "inherit",
+                fontWeight: isActive ? 600 : 400,
+              })}
+            >
+              {t("users")}
+            </NavLink>
+            <NavLink
+              to="/admin/presets"
+              style={({ isActive }) => ({
+                textDecoration: "none",
+                color: isActive ? "#1d4ed8" : "inherit",
+                fontWeight: isActive ? 600 : 400,
+              })}
+            >
+              {t("layerPresets")}
+            </NavLink>
             <Link to="/" style={{ color: "inherit", textDecoration: "none" }}>
               {t("publicView")}
             </Link>

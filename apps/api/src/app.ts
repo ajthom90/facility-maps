@@ -1,3 +1,4 @@
+import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 import { getDb, type Db } from "./db/client.js";
 import { env } from "./lib/env.js";
@@ -21,11 +22,14 @@ export type CreateAppOptions = {
   db?: Db;
   /** Override upload root (tests). Defaults to env.UPLOAD_DIR. */
   uploadDir?: string;
+  /** Override static web root (tests). Defaults to env.WEB_DIST. */
+  webDist?: string;
 };
 
 export function createApp(options: CreateAppOptions = {}) {
   const resolveDb = (): Db => options.db ?? getDb();
   const uploadDir = options.uploadDir ?? env.UPLOAD_DIR;
+  const webDist = options.webDist ?? env.WEB_DIST;
 
   const app = new Hono<{ Variables: AdminVariables }>();
   app.route("/api/health", healthRoutes);
@@ -41,6 +45,23 @@ export function createApp(options: CreateAppOptions = {}) {
   app.route("/api/admin/features", adminFeaturesRoutes(resolveDb));
   app.route("/api/admin/users", adminUsersRoutes(resolveDb));
   app.route("/api/admin/presets", adminPresetsRoutes(resolveDb));
-  // TODO: serve static web from apps/web/dist (later task)
+
+  // Static SPA after all API routes. WEB_DIST is relative to process cwd.
+  if (webDist) {
+    const root = webDist.replace(/\\/g, "/").replace(/\/+$/, "");
+    app.use("*", async (c, next) => {
+      if (c.req.path.startsWith("/api")) {
+        return next();
+      }
+      return serveStatic({ root })(c, next);
+    });
+    app.get("*", async (c, next) => {
+      if (c.req.path.startsWith("/api")) {
+        return c.json({ error: "Not found" }, 404);
+      }
+      return serveStatic({ root, path: "index.html" })(c, next);
+    });
+  }
+
   return app;
 }

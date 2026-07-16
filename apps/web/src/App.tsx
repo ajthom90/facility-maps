@@ -7,7 +7,9 @@ import { HomePage } from "./pages/HomePage";
 import { AdminLayout } from "./pages/admin/AdminLayout";
 import { FloorEditorPage } from "./pages/admin/FloorEditorPage";
 import { LoginPage } from "./pages/admin/LoginPage";
+import { PresetsPage } from "./pages/admin/PresetsPage";
 import { StructurePage } from "./pages/admin/StructurePage";
+import { UsersPage } from "./pages/admin/UsersPage";
 
 export function App() {
   return (
@@ -17,6 +19,8 @@ export function App() {
         <Route path="/admin/login" element={<LoginPage />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<StructurePage />} />
+          <Route path="users" element={<UsersPage />} />
+          <Route path="presets" element={<PresetsPage />} />
           <Route path="floors/:floorId" element={<FloorEditorPage />} />
         </Route>
 

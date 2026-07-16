@@ -6,4 +6,10 @@ export const env = {
   ADMIN_BOOTSTRAP_PASSWORD: process.env.ADMIN_BOOTSTRAP_PASSWORD ?? "",
   MAX_UPLOAD_BYTES: Number(process.env.MAX_UPLOAD_BYTES ?? 20 * 1024 * 1024),
   UPLOAD_DIR: process.env.UPLOAD_DIR ?? "./data/uploads",
+  /**
+   * Relative path (from process cwd) to built web assets, e.g. `apps/web/dist`.
+   * When set, the API serves the SPA after API routes. Empty = API only.
+   * Absolute paths are not supported by @hono/node-server serveStatic.
+   */
+  WEB_DIST: process.env.WEB_DIST ?? "",
 };

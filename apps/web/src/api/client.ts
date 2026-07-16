@@ -6,6 +6,7 @@ import type {
   FeatureType,
   FloorDetail,
   FloorPlan,
+  LayerPreset,
   MapFeature,
   PresetsResponse,
 } from "../types";
@@ -13,6 +14,13 @@ import type {
 export type AdminUser = {
   id: string;
   username: string;
+};
+
+export type ManagedAdminUser = {
+  id: string;
+  username: string;
+  disabled: boolean;
+  createdAt: string;
 };
 
 export type CampusRecord = {
@@ -274,6 +282,44 @@ export const api = {
   deleteFeature(id: string): Promise<{ ok: boolean; id: string }> {
     return requestJson(`/api/admin/features/${encodeURIComponent(id)}`, {
       method: "DELETE",
+    });
+  },
+
+  // --- Admin users ---
+
+  listAdminUsers(): Promise<{ users: ManagedAdminUser[] }> {
+    return requestJson<{ users: ManagedAdminUser[] }>("/api/admin/users");
+  },
+
+  createAdminUser(input: {
+    username: string;
+    password: string;
+  }): Promise<ManagedAdminUser> {
+    return requestJson<ManagedAdminUser>("/api/admin/users", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  updateAdminUser(
+    id: string,
+    input: { disabled?: boolean; password?: string },
+  ): Promise<ManagedAdminUser> {
+    return requestJson<ManagedAdminUser>(`/api/admin/users/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+
+  // --- Admin presets ---
+
+  updatePreset(
+    id: string,
+    input: { featureTypes: string[] },
+  ): Promise<LayerPreset> {
+    return requestJson<LayerPreset>(`/api/admin/presets/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
     });
   },
 };
