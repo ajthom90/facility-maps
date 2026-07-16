@@ -254,9 +254,21 @@ export function MapCanvas({
           if (planClick && planBox) {
             const rect = planBox.getBoundingClientRect();
             if (rect.width > 0 && rect.height > 0) {
-              const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-              const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
-              planClick({ x, y });
+              // Only treat as a plan click when the pointer is inside the plan box.
+              // Clamping alone would map margin/letterbox clicks onto edges and create features.
+              const inside =
+                e.clientX >= rect.left &&
+                e.clientX <= rect.right &&
+                e.clientY >= rect.top &&
+                e.clientY <= rect.bottom;
+              if (inside) {
+                const x = (e.clientX - rect.left) / rect.width;
+                const y = (e.clientY - rect.top) / rect.height;
+                planClick({ x, y });
+              } else {
+                // Outside plan box: clear selection (same as empty-canvas / select-mode behavior)
+                onSelectFeature(null);
+              }
             }
           } else {
             onSelectFeature(null);

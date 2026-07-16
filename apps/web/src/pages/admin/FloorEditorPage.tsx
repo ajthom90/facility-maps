@@ -39,6 +39,10 @@ export function FloorEditorPage() {
   const [editType, setEditType] = useState<string>("exit");
 
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Track selected id so edit fields only reset when the user picks a different feature. */
+  const selectedIdRef = useRef<string | null>(null);
+  /** Always-current draft vertices for double-click / Complete (avoids stale state). */
+  const draftPointsRef = useRef<[number, number][]>([]);
 
   const allTypes = useMemo(() => new Set<string>(FEATURE_TYPES), []);
 
@@ -54,6 +58,11 @@ export function FloorEditorPage() {
     };
   }, []);
 
+  const setDraftPointsSynced = useCallback((points: [number, number][]) => {
+    draftPointsRef.current = points;
+    setDraftPoints(points);
+  }, []);
+
   const loadFloor = useCallback(async () => {
     const data = await api.getFloorById(floorId);
     setFloor(data);
@@ -64,7 +73,8 @@ export function FloorEditorPage() {
     let cancelled = false;
     setFloor(null);
     setSelected(null);
-    setDraftPoints([]);
+    selectedIdRef.current = null;
+    setDraftPointsSynced([]);
     setError(null);
     loadFloor().catch((err: unknown) => {
       if (!cancelled) {
@@ -74,13 +84,22 @@ export function FloorEditorPage() {
     return () => {
       cancelled = true;
     };
-  }, [loadFloor, t]);
+  }, [loadFloor, t, setDraftPointsSynced]);
 
+  // Only reset edit fields when the selected *feature id* changes — not when the
+  // same feature object identity updates after autosave (which would clobber in-progress notes/label).
   useEffect(() => {
+    const nextId = selected?.id ?? null;
+    if (nextId === selectedIdRef.current) return;
+    selectedIdRef.current = nextId;
     if (selected) {
       setEditLabel(selected.label ?? "");
       setEditNotes(selected.notes ?? "");
       setEditType(selected.type);
+    } else {
+      setEditLabel("");
+      setEditNotes("");
+      setEditType("exit");
     }
   }, [selected]);
 
@@ -93,7 +112,9 @@ export function FloorEditorPage() {
           }
         : prev,
     );
-    setSelected(next);
+    // Refresh selection only when this is the currently selected feature —
+    // do not jump selection after concurrent saves of another feature.
+    setSelected((prev) => (prev?.id === next.id ? next : prev));
   }
 
   function addFeature(next: MapFeature) {
@@ -109,7 +130,7 @@ export function FloorEditorPage() {
         ? { ...prev, features: prev.features.filter((f) => f.id !== id) }
         : prev,
     );
-    if (selected?.id === id) setSelected(null);
+    setSelected((prev) => (prev?.id === id ? null : prev));
   }
 
   async function onUploadPlan(e: ChangeEvent<HTMLInputElement>) {
@@ -158,34 +179,42 @@ export function FloorEditorPage() {
       }
 
       if (tool === "polygon") {
-        setDraftPoints((prev) => [...prev, [coords.x, coords.y]]);
+        const next: [number, number][] = [
+          ...draftPointsRef.current,
+          [coords.x, coords.y],
+        ];
+        draftPointsRef.current = next;
+        setDraftPoints(next);
       }
     },
     [floor, floorId, tool, featureType, flashSaved, t],
   );
 
-  async function completePolygon() {
-    if (!floorId || draftPoints.length < 3) return;
+  const completePolygon = useCallback(async () => {
+    // Read from ref so double-click sees the latest vertices even if a click
+    // just updated draftPoints and React state has not re-rendered yet.
+    const points = draftPointsRef.current;
+    if (!floorId || points.length < 3) return;
     setSaving(true);
     setError(null);
     try {
       const created = await api.createFeature({
         floorId,
         type: featureType,
-        geometry: { type: "polygon", points: draftPoints },
+        geometry: { type: "polygon", points },
       });
       addFeature(created);
-      setDraftPoints([]);
+      setDraftPointsSynced([]);
       flashSaved();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("errorLoad"));
     } finally {
       setSaving(false);
     }
-  }
+  }, [floorId, featureType, flashSaved, t, setDraftPointsSynced]);
 
   function cancelPolygon() {
-    setDraftPoints([]);
+    setDraftPointsSynced([]);
   }
 
   async function saveSelectedPatch(patch: {
@@ -313,7 +342,7 @@ export function FloorEditorPage() {
               type="button"
               onClick={() => {
                 setTool(value);
-                if (value !== "polygon") setDraftPoints([]);
+                if (value !== "polygon") setDraftPointsSynced([]);
               }}
               style={{
                 ...toolButtonStyle,
@@ -390,9 +419,20 @@ export function FloorEditorPage() {
               minHeight: 280,
             }}
             onDoubleClick={(e) => {
-              // Complete polygon on double-click when drawing
-              if (tool === "polygon" && draftPoints.length >= 3) {
-                e.preventDefault();
+              // Complete from ref (latest vertices) without relying on stale state.
+              // The second click of a double-click already appended a vertex via
+              // onPlanClick — drop that extra point before completing when possible.
+              if (tool !== "polygon") return;
+              e.preventDefault();
+              const points = draftPointsRef.current;
+              if (points.length < 3) return;
+              // Prefer completing without the double-click vertex when we still
+              // have ≥3 points after removing it.
+              const forComplete =
+                points.length > 3 ? points.slice(0, -1) : points;
+              draftPointsRef.current = forComplete;
+              setDraftPoints(forComplete);
+              if (forComplete.length >= 3) {
                 void completePolygon();
               }
             }}
