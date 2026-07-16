@@ -66,6 +66,8 @@ export function UsersPage() {
     return <p>{t("loading")}</p>;
   }
 
+  const enabledCount = users.filter((u) => !u.disabled).length;
+
   return (
     <section style={{ display: "grid", gap: "1rem" }}>
       <div>
@@ -105,24 +107,30 @@ export function UsersPage() {
       </form>
 
       <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.5rem" }}>
-        {users.map((user) => (
-          <li key={user.id} style={cardStyle}>
-            <div>
-              <div style={{ fontWeight: 600 }}>{user.username}</div>
-              <div style={{ fontSize: "0.8rem", color: "#666" }}>
-                {user.disabled ? t("disabled") : t("enabled")}
+        {users.map((user) => {
+          // Prevent locking out the last remaining enabled admin from the UI.
+          const isLastEnabledAdmin = !user.disabled && enabledCount <= 1;
+          return (
+            <li key={user.id} style={cardStyle}>
+              <div>
+                <div style={{ fontWeight: 600 }}>{user.username}</div>
+                <div style={{ fontSize: "0.8rem", color: "#666" }}>
+                  {user.disabled ? t("disabled") : t("enabled")}
+                  {isLastEnabledAdmin ? ` — ${t("lastAdminCannotDisable")}` : null}
+                </div>
               </div>
-            </div>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onToggleDisabled(user)}
-              style={user.disabled ? primaryButtonStyle : dangerButtonStyle}
-            >
-              {user.disabled ? t("enable") : t("disable")}
-            </button>
-          </li>
-        ))}
+              <button
+                type="button"
+                disabled={busy || isLastEnabledAdmin}
+                onClick={() => onToggleDisabled(user)}
+                title={isLastEnabledAdmin ? t("lastAdminCannotDisable") : undefined}
+                style={user.disabled ? primaryButtonStyle : dangerButtonStyle}
+              >
+                {user.disabled ? t("enable") : t("disable")}
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

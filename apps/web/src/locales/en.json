@@ -49,6 +49,7 @@
   "disable": "Disable",
   "enabled": "Enabled",
   "disabled": "Disabled",
+  "lastAdminCannotDisable": "Cannot disable the last enabled admin",
   "layerPresets": "Presets",
   "presetsHint": "Choose which feature types each layer preset includes.",
   "save": "Save",

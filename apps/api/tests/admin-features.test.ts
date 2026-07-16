@@ -34,6 +34,7 @@ describe("admin features, users, and presets", () => {
   let db: Db;
   let app: ReturnType<typeof createApp>;
   let cookie: string;
+  let userId: string;
   let floorId: string;
   let createdFeatureIds: string[] = [];
   let createdUserIds: string[] = [];
@@ -58,12 +59,17 @@ describe("admin features, users, and presets", () => {
         .update(adminUsers)
         .set({ passwordHash, disabled: false })
         .where(eq(adminUsers.id, existing[0].id));
+      userId = existing[0].id;
     } else {
-      await db.insert(adminUsers).values({
-        username: TEST_USERNAME,
-        passwordHash,
-        disabled: false,
-      });
+      const [created] = await db
+        .insert(adminUsers)
+        .values({
+          username: TEST_USERNAME,
+          passwordHash,
+          disabled: false,
+        })
+        .returning();
+      userId = created.id;
     }
 
     const [mankato] = await db
@@ -340,5 +346,61 @@ describe("admin features, users, and presets", () => {
     });
     expect(disable.status).toBe(200);
     expect((await disable.json()).disabled).toBe(true);
+  });
+
+  it("rejects disabling the last enabled admin", async () => {
+    const list = await app.request("/api/admin/users", {
+      method: "GET",
+      headers: { Cookie: cookie },
+    });
+    expect(list.status).toBe(200);
+    const { users } = (await list.json()) as {
+      users: { id: string; disabled: boolean }[];
+    };
+    const previouslyEnabledIds = users.filter((u) => !u.disabled).map((u) => u.id);
+
+    try {
+      // Temporarily disable every other enabled admin so userId is the sole remaining one.
+      for (const id of previouslyEnabledIds) {
+        if (id === userId) continue;
+        const res = await app.request(`/api/admin/users/${id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: cookie,
+          },
+          body: JSON.stringify({ disabled: true }),
+        });
+        expect(res.status).toBe(200);
+      }
+
+      const sole = await app.request("/api/admin/users", {
+        method: "GET",
+        headers: { Cookie: cookie },
+      });
+      const soleUsers = ((await sole.json()) as { users: { id: string; disabled: boolean }[] })
+        .users;
+      expect(soleUsers.filter((u) => !u.disabled).map((u) => u.id)).toEqual([userId]);
+
+      const lockout = await app.request(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: cookie,
+        },
+        body: JSON.stringify({ disabled: true }),
+      });
+      expect(lockout.status).toBe(400);
+      expect(await lockout.json()).toEqual({
+        error: "Cannot disable the last enabled admin",
+      });
+    } finally {
+      for (const id of previouslyEnabledIds) {
+        await db
+          .update(adminUsers)
+          .set({ disabled: false })
+          .where(eq(adminUsers.id, id));
+      }
+    }
   });
 });

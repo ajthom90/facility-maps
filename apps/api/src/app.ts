@@ -47,16 +47,18 @@ export function createApp(options: CreateAppOptions = {}) {
   app.route("/api/admin/presets", adminPresetsRoutes(resolveDb));
 
   // Static SPA after all API routes. WEB_DIST is relative to process cwd.
+  // Match only exact `/api` or `/api/...` so paths like `/api-campus` fall through to SPA.
+  const isApiPath = (path: string) => path === "/api" || path.startsWith("/api/");
   if (webDist) {
     const root = webDist.replace(/\\/g, "/").replace(/\/+$/, "");
     app.use("*", async (c, next) => {
-      if (c.req.path.startsWith("/api")) {
+      if (isApiPath(c.req.path)) {
         return next();
       }
       return serveStatic({ root })(c, next);
     });
     app.get("*", async (c, next) => {
-      if (c.req.path.startsWith("/api")) {
+      if (isApiPath(c.req.path)) {
         return c.json({ error: "Not found" }, 404);
       }
       return serveStatic({ root, path: "index.html" })(c, next);

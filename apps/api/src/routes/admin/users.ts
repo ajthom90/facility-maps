@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, ne, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
@@ -108,6 +108,34 @@ export function adminUsersRoutes(getDb: () => Db) {
       return c.json({ error: "No fields to update" }, 400);
     }
 
+    const db = getDb();
+
+    // Reject disabling the last remaining enabled admin (avoid total lockout).
+    if (parsed.data.disabled === true) {
+      const [target] = await db
+        .select({ id: adminUsers.id, disabled: adminUsers.disabled })
+        .from(adminUsers)
+        .where(eq(adminUsers.id, id))
+        .limit(1);
+
+      if (!target) {
+        return c.json({ error: "User not found" }, 404);
+      }
+
+      if (!target.disabled) {
+        const [row] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(adminUsers)
+          .where(and(eq(adminUsers.disabled, false), ne(adminUsers.id, id)));
+        if ((row?.count ?? 0) === 0) {
+          return c.json(
+            { error: "Cannot disable the last enabled admin" },
+            400,
+          );
+        }
+      }
+    }
+
     const updates: Partial<{ disabled: boolean; passwordHash: string }> = {};
     if (parsed.data.disabled !== undefined) {
       updates.disabled = parsed.data.disabled;
@@ -116,7 +144,7 @@ export function adminUsersRoutes(getDb: () => Db) {
       updates.passwordHash = await hashPassword(parsed.data.password);
     }
 
-    const [row] = await getDb()
+    const [row] = await db
       .update(adminUsers)
       .set(updates)
       .where(eq(adminUsers.id, id))
