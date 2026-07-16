@@ -72,17 +72,19 @@ describe("admin features, users, and presets", () => {
       userId = created.id;
     }
 
-    const [mankato] = await db
-      .select()
-      .from(campuses)
-      .where(eq(campuses.slug, "mankato"))
-      .limit(1);
-    if (!mankato) throw new Error("expected seeded mankato campus");
+    const [campus] = await db
+      .insert(campuses)
+      .values({
+        name: "Features Test Campus",
+        slug: "features-test-campus",
+        sortOrder: 0,
+      })
+      .returning();
 
     const [building] = await db
       .insert(buildings)
       .values({
-        campusId: mankato.id,
+        campusId: campus.id,
         name: "Features Test Hall",
         slug: "features-test-hall",
         sortOrder: 0,

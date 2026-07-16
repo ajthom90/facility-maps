@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a self-hosted open-source web app for interactive campus facility safety maps (Mankato & Waseca) with public pan/zoom viewing, layer presets, and an admin editor for SVG/image floor plans plus pins and polygons.
+**Goal:** Build a self-hosted open-source web app for interactive campus facility safety maps with public pan/zoom viewing, layer presets, and an admin editor for SVG/image floor plans plus pins and polygons.
 
 **Architecture:** npm workspaces monorepo: `apps/api` (Hono + Drizzle + Postgres) serves JSON REST and uploads; `apps/web` (React + Vite + i18next) is the public viewer and admin UI. Docker Compose runs `app` + `db`. Feature coordinates are normalized 0–1. Public reads are unauthenticated; mutations require admin session cookies.
 
@@ -323,7 +323,7 @@ git commit -m "chore: scaffold monorepo, Docker, and health endpoint"
 - Produces: Drizzle tables `campuses`, `buildings`, `floors`, `floor_plans`, `features`, `admin_users`, `layer_presets`
 - Produces: `FEATURE_TYPES` const array and TypeScript union
 - Produces: `db` client from `getDb()`
-- Produces: seed campuses Mankato/Waseca + five layer presets
+- Produces: seed five layer presets only (no campuses — admins create them)
 
 - [ ] **Step 1: Write failing test for feature types and preset slugs**
 
@@ -448,7 +448,7 @@ export type Db = ReturnType<typeof createDb>;
 
 Use `drizzle-kit generate` + `migrate` OR push SQL in `migrate.ts` with `drizzle-orm/postgres-js/migrator`. Prefer drizzle-kit migrations committed under `apps/api/drizzle/`.
 
-Seed logic (`seed.ts`): if no campuses, insert Mankato (`mankato`) and Waseca (`waseca`). If no presets, insert `PRESET_SEEDS` (for `all`, store full `FEATURE_TYPES` array explicitly to avoid special-case ambiguity in DB).
+Seed logic (`seed.ts`): if no presets, insert `PRESET_SEEDS` (for `all`, store full `FEATURE_TYPES` array explicitly). Do **not** seed campuses.
 
 - [ ] **Step 4: Run constants test**
 
@@ -607,7 +607,7 @@ it("lists seeded campuses", async () => {
   expect(res.status).toBe(200);
   const body = await res.json();
   const slugs = body.campuses.map((c: { slug: string }) => c.slug).sort();
-  expect(slugs).toEqual(["mankato", "waseca"]);
+  expect(slugs).toEqual(expect.arrayContaining(["test-campus-alpha"]));
 });
 
 it("returns 404 for unknown campus", async () => {
@@ -753,7 +753,7 @@ Slug rules: lowercase, `[a-z0-9]+(?:-[a-z0-9]+)*`, generate from name if omitted
 
 Upload: allow `image/svg+xml`, `image/png`, `image/jpeg`; enforce `MAX_UPLOAD_BYTES`; write to `UPLOAD_DIR/{floorId}/{uuid}.ext`; upsert `floor_plans` row for floor.
 
-- [ ] **Step 1: Write failing tests** — create building under mankato without auth → 401; with auth → 201; upload tiny PNG → plan URL works on public floor GET
+- [ ] **Step 1: Write failing tests** — create building without auth → 401; with auth → 201; upload tiny PNG → plan URL works on public floor GET
 
 - [ ] **Step 2: Implement routes**
 
@@ -861,7 +861,7 @@ git commit -am "feat(api): admin features, users, and preset updates"
 
 HomePage: fetch campuses, show cards linking to `/${slug}`.
 
-- [ ] **Step 3: Manual smoke — `npm run dev` both apps, open home, see Mankato & Waseca**
+- [ ] **Step 3: Manual smoke — `npm run dev` both apps, open home (empty campuses until admin creates some)**
 
 - [ ] **Step 4: Commit**
 
@@ -1024,7 +1024,7 @@ git commit -am "chore: security checks, empty states, and verification polish"
 | Spec requirement | Task(s) |
 |------------------|---------|
 | Campus → Building → Floor | 2, 4, 6, 8, 10 |
-| Mankato & Waseca seed | 2 |
+| Layer preset seed (no campus seed) | 2 |
 | SVG + PNG/JPG plans | 6, 9, 10 |
 | Points + polygons, label, notes | 3, 7, 9, 10 |
 | All 13 feature types | 2, 8 |

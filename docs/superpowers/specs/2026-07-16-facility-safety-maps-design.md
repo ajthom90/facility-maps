@@ -7,7 +7,7 @@
 
 ## 1. Problem and goals
 
-Internal web application for two campuses (**Mankato** and **Waseca**) that shows interactive facility floor maps with safety-related features for emergency awareness and response. Staff browse without logging in. Admins upload floor plans and place safety points and areas.
+Internal web application for multi-campus facility floor maps with safety-related features for emergency awareness and response. Staff browse without logging in. Admins create campuses and upload floor plans and place safety points and areas.
 
 ### Success criteria
 
@@ -119,7 +119,7 @@ Campus
 | slug | string | URL segment, unique |
 | sort_order | int | Navigation order |
 
-Seed: **Mankato**, **Waseca**.
+Campuses are **not** pre-seeded; admins create them via the admin UI.
 
 #### Building
 
@@ -235,12 +235,12 @@ Users can start from a preset and further toggle individual types on or off in t
 
 ### Navigation
 
-1. **Home** — campus cards (Mankato, Waseca, …)
+1. **Home** — campus cards (as published by admins)
 2. **Campus** — buildings
 3. **Building** — floors
 4. **Floor map** — interactive plan
 
-**Deep links:** `/{campusSlug}/{buildingSlug}/{floorSlug}` (e.g. `/mankato/science-hall/floor-2`).
+**Deep links:** `/{campusSlug}/{buildingSlug}/{floorSlug}` (e.g. `/north-campus/science-hall/floor-2`).
 
 ### Floor map UI
 

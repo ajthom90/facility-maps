@@ -43,7 +43,8 @@ describe("admin hierarchy CRUD + plan upload", () => {
   let app: ReturnType<typeof createApp>;
   let uploadDir: string;
   let cookie: string;
-  let mankatoId: string;
+  let campusId: string;
+  let campusSlug: string;
   let createdBuildingIds: string[] = [];
   let createdFloorIds: string[] = [];
   let createdCampusIds: string[] = [];
@@ -74,13 +75,13 @@ describe("admin hierarchy CRUD + plan upload", () => {
       });
     }
 
-    const [mankato] = await db
-      .select()
-      .from(campuses)
-      .where(eq(campuses.slug, "mankato"))
-      .limit(1);
-    if (!mankato) throw new Error("expected seeded mankato campus");
-    mankatoId = mankato.id;
+    const [campus] = await db
+      .insert(campuses)
+      .values({ name: "Hierarchy Test Campus", slug: "hierarchy-test-campus", sortOrder: 0 })
+      .returning();
+    campusId = campus.id;
+    campusSlug = campus.slug;
+    createdCampusIds.push(campus.id);
 
     app = createApp({ db, uploadDir });
 
@@ -114,7 +115,7 @@ describe("admin hierarchy CRUD + plan upload", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        campusId: mankatoId,
+        campusId: campusId,
         name: "Unauthed Hall",
         slug: "unauthed-hall",
       }),
@@ -123,7 +124,7 @@ describe("admin hierarchy CRUD + plan upload", () => {
     expect(await res.json()).toEqual({ error: "Unauthorized" });
   });
 
-  it("creates a building under mankato with auth → 201", async () => {
+  it("creates a building under the test campus with auth → 201", async () => {
     const res = await app.request("/api/admin/buildings", {
       method: "POST",
       headers: {
@@ -131,7 +132,7 @@ describe("admin hierarchy CRUD + plan upload", () => {
         Cookie: cookie,
       },
       body: JSON.stringify({
-        campusId: mankatoId,
+        campusId: campusId,
         name: "Science Hall",
         // slug omitted — generated from name
       }),
@@ -140,7 +141,7 @@ describe("admin hierarchy CRUD + plan upload", () => {
     const body = await res.json();
     expect(body).toMatchObject({
       id: expect.any(String),
-      campusId: mankatoId,
+      campusId: campusId,
       name: "Science Hall",
       slug: "science-hall",
       sortOrder: 0,
@@ -148,7 +149,7 @@ describe("admin hierarchy CRUD + plan upload", () => {
     createdBuildingIds.push(body.id);
 
     // Visible on public campus tree
-    const campusRes = await app.request("/api/campuses/mankato");
+    const campusRes = await app.request(`/api/campuses/${campusSlug}`);
     expect(campusRes.status).toBe(200);
     const campusBody = await campusRes.json();
     expect(campusBody.buildings.some((b: { slug: string }) => b.slug === "science-hall")).toBe(

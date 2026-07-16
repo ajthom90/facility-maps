@@ -47,83 +47,47 @@ describe("public APIs", () => {
     await fs.mkdir(path.dirname(planAbs), { recursive: true });
     await fs.writeFile(planAbs, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
 
-    // Ensure a building + floor + plan + feature exist under a seeded campus
-    const [campus] = await db.select().from(campuses).where(eq(campuses.slug, "mankato")).limit(1);
-    if (!campus) throw new Error("expected seeded mankato campus");
+    // Create a disposable campus hierarchy for public-read tests
+    const [campus] = await db
+      .insert(campuses)
+      .values({ name: "Test Campus Alpha", slug: "test-campus-alpha", sortOrder: 0 })
+      .returning();
     campusSlug = campus.slug;
 
-    const existingBuildings = await db
-      .select()
-      .from(buildings)
-      .where(eq(buildings.campusId, campus.id))
-      .limit(1);
-
-    let building = existingBuildings[0];
-    if (!building) {
-      [building] = await db
-        .insert(buildings)
-        .values({ campusId: campus.id, name: "Main Hall", slug: "main-hall", sortOrder: 0 })
-        .returning();
-    }
+    const [building] = await db
+      .insert(buildings)
+      .values({ campusId: campus.id, name: "Main Hall", slug: "main-hall", sortOrder: 0 })
+      .returning();
     buildingSlug = building.slug;
 
-    const existingFloors = await db
-      .select()
-      .from(floors)
-      .where(eq(floors.buildingId, building.id))
-      .limit(1);
-
-    let floor = existingFloors[0];
-    if (!floor) {
-      [floor] = await db
-        .insert(floors)
-        .values({
-          buildingId: building.id,
-          name: "Floor 1",
-          slug: "floor-1",
-          level: 1,
-          sortOrder: 0,
-        })
-        .returning();
-    }
+    const [floor] = await db
+      .insert(floors)
+      .values({
+        buildingId: building.id,
+        name: "Floor 1",
+        slug: "floor-1",
+        level: 1,
+        sortOrder: 0,
+      })
+      .returning();
     floorSlug = floor.slug;
     floorId = floor.id;
 
-    const existingPlan = await db
-      .select()
-      .from(floorPlans)
-      .where(eq(floorPlans.floorId, floor.id))
-      .limit(1);
-    if (existingPlan.length === 0) {
-      await db.insert(floorPlans).values({
-        floorId: floor.id,
-        filePath: planRelativePath,
-        mimeType: "image/png",
-        width: 100,
-        height: 80,
-      });
-    } else {
-      // Keep file path in sync with this test's uploadDir
-      await db
-        .update(floorPlans)
-        .set({ filePath: planRelativePath, mimeType: "image/png", width: 100, height: 80 })
-        .where(eq(floorPlans.floorId, floor.id));
-    }
+    await db.insert(floorPlans).values({
+      floorId: floor.id,
+      filePath: planRelativePath,
+      mimeType: "image/png",
+      width: 100,
+      height: 80,
+    });
 
-    const existingFeatures = await db
-      .select()
-      .from(features)
-      .where(eq(features.floorId, floor.id))
-      .limit(1);
-    if (existingFeatures.length === 0) {
-      await db.insert(features).values({
-        floorId: floor.id,
-        type: "exit",
-        geometry: { type: "point", x: 0.5, y: 0.5 },
-        label: "Main exit",
-        notes: null,
-      });
-    }
+    await db.insert(features).values({
+      floorId: floor.id,
+      type: "exit",
+      geometry: { type: "point", x: 0.5, y: 0.5 },
+      label: "Main exit",
+      notes: null,
+    });
 
     app = createApp({ db, uploadDir });
   });
@@ -134,12 +98,12 @@ describe("public APIs", () => {
     }
   });
 
-  it("lists seeded campuses", async () => {
+  it("lists campuses including the test campus", async () => {
     const res = await app.request("/api/campuses");
     expect(res.status).toBe(200);
     const body = await res.json();
-    const slugs = body.campuses.map((c: { slug: string }) => c.slug).sort();
-    expect(slugs).toEqual(["mankato", "waseca"]);
+    const slugs = body.campuses.map((c: { slug: string }) => c.slug);
+    expect(slugs).toContain(campusSlug);
     expect(body.campuses[0]).toMatchObject({
       id: expect.any(String),
       name: expect.any(String),

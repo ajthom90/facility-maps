@@ -3,18 +3,13 @@ import { fileURLToPath } from "node:url";
 import { count } from "drizzle-orm";
 import { FEATURE_TYPES, PRESET_SEEDS } from "../lib/feature-types.js";
 import { createDb, type Db } from "./client.js";
-import { campuses, layerPresets } from "./schema.js";
+import { layerPresets } from "./schema.js";
 
+/**
+ * Seeds system defaults only (layer presets).
+ * Campuses, buildings, and floors are created by admins — not preloaded.
+ */
 export async function seed(db: Db): Promise<void> {
-  const [{ campusCount }] = await db.select({ campusCount: count() }).from(campuses);
-  if (campusCount === 0) {
-    await db.insert(campuses).values([
-      { name: "Mankato", slug: "mankato", sortOrder: 0 },
-      { name: "Waseca", slug: "waseca", sortOrder: 1 },
-    ]);
-    console.log("Seeded campuses: Mankato, Waseca");
-  }
-
   const [{ presetCount }] = await db.select({ presetCount: count() }).from(layerPresets);
   if (presetCount === 0) {
     await db.insert(layerPresets).values(
