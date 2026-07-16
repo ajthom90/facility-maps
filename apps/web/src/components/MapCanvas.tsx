@@ -20,6 +20,15 @@ export type MapCanvasProps = {
   visibleTypes: Set<string>;
   onSelectFeature: (feature: MapFeature | null) => void;
   selectedFeatureId?: string | null;
+  /**
+   * Called when the user clicks the plan (not a pan, not a feature marker).
+   * Coordinates are normalized 0–1 relative to the plan box (origin top-left).
+   */
+  onPlanClick?: (coords: { x: number; y: number }) => void;
+  /** Optional in-progress polygon vertices (normalized) for editor draft overlay. */
+  draftPolygonPoints?: [number, number][];
+  /** Override viewport cursor (e.g. crosshair for pin/polygon tools). */
+  cursor?: string;
 };
 
 type ViewState = {
@@ -54,11 +63,17 @@ export function MapCanvas({
   visibleTypes,
   onSelectFeature,
   selectedFeatureId = null,
+  onPlanClick,
+  draftPolygonPoints,
+  cursor = "grab",
 }: MapCanvasProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const planBoxRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<ViewState>({ scale: 1, x: 0, y: 0 });
   const viewRef = useRef(view);
   viewRef.current = view;
+  const onPlanClickRef = useRef(onPlanClick);
+  onPlanClickRef.current = onPlanClick;
 
   /** Active pointers by id — multi-pointer tracking for pan vs pinch. */
   const pointersRef = useRef<Map<number, PointerSample>>(new Map());
@@ -234,7 +249,18 @@ export function MapCanvas({
         // No pointers left
         pinchRef.current = null;
         if (wasPanPointer && !moved) {
-          onSelectFeature(null);
+          const planClick = onPlanClickRef.current;
+          const planBox = planBoxRef.current;
+          if (planClick && planBox) {
+            const rect = planBox.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+              const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+              planClick({ x, y });
+            }
+          } else {
+            onSelectFeature(null);
+          }
         }
         dragRef.current = null;
       }
@@ -270,7 +296,7 @@ export function MapCanvas({
         borderRadius: 8,
         border: "1px solid #e2e2e5",
         touchAction: "none",
-        cursor: "grab",
+        cursor,
         userSelect: "none",
       }}
     >
@@ -289,6 +315,7 @@ export function MapCanvas({
         }}
       >
         <div
+          ref={planBoxRef}
           style={{
             position: "relative",
             width: "100%",
@@ -351,6 +378,33 @@ export function MapCanvas({
                 />
               );
             })}
+
+            {draftPolygonPoints && draftPolygonPoints.length > 0 ? (
+              <>
+                {draftPolygonPoints.length >= 2 ? (
+                  <polyline
+                    points={draftPolygonPoints.map(([px, py]) => `${px},${py}`).join(" ")}
+                    fill="none"
+                    stroke="#111"
+                    strokeWidth={0.006}
+                    strokeDasharray="0.02 0.01"
+                    pointerEvents="none"
+                  />
+                ) : null}
+                {draftPolygonPoints.map(([px, py], i) => (
+                  <circle
+                    key={`draft-${i}`}
+                    cx={px}
+                    cy={py}
+                    r={0.012}
+                    fill="#111"
+                    stroke="#fff"
+                    strokeWidth={0.004}
+                    pointerEvents="none"
+                  />
+                ))}
+              </>
+            ) : null}
           </svg>
 
           {/* Point markers — percent positioning, origin top-left */}

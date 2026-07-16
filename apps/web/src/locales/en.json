@@ -40,5 +40,28 @@
   "notes": "Notes",
   "loading": "Loading…",
   "errorLoad": "Something went wrong. Please try again.",
-  "notFound": "Not found"
+  "notFound": "Not found",
+  "structure": "Structure",
+  "publicView": "Public site",
+  "name": "Name",
+  "add": "Add",
+  "delete": "Delete",
+  "rename": "Rename",
+  "addCampus": "New campus name",
+  "addBuilding": "New building name",
+  "addFloor": "New floor name",
+  "level": "Level",
+  "editMap": "Edit map",
+  "uploadPlan": "Upload plan",
+  "featureType": "Type",
+  "editFeature": "Feature",
+  "selectFeatureHint": "Select a feature on the map to edit label, notes, or type.",
+  "complete": "Complete",
+  "cancel": "Cancel",
+  "vertices": "vertices",
+  "tools": {
+    "select": "Select",
+    "pin": "Pin",
+    "polygon": "Polygon"
+  }
 }
