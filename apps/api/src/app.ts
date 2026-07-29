@@ -32,6 +32,12 @@ export function createApp(options: CreateAppOptions = {}) {
   const webDist = options.webDist ?? env.WEB_DIST;
 
   const app = new Hono<{ Variables: AdminVariables }>();
+
+  app.onError((err, c) => {
+    console.error(`[api] ${c.req.method} ${c.req.path}`, err);
+    return c.json({ error: "Internal server error" }, 500);
+  });
+
   app.route("/api/health", healthRoutes);
   app.route("/api/auth", authRoutes(resolveDb));
   app.route("/api/campuses", campusesRoutes(resolveDb));

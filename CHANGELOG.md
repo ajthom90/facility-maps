@@ -12,6 +12,12 @@ Container images: `ghcr.io/ajthom90/facility-maps:<version>` (see README).
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-07-29
+
+### Fixed
+- **TrueNAS / upgrade crash:** `GET /api/campuses` 500 when the SQLite DB was created before hierarchy modes (missing `hierarchy_mode` column). Startup now runs an idempotent schema compatibility step after migrations.
+- Log API 500s with method and path for easier ops debugging.
+
 ## [0.3.0] — 2026-07-29
 
 ### Added

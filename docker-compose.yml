@@ -16,7 +16,7 @@ services:
     build:
       context: .
       args:
-        APP_VERSION: ${APP_VERSION:-0.3.0}
+        APP_VERSION: ${APP_VERSION:-0.3.1}
     ports:
       - "${PORT:-3000}:3000"
     environment:
@@ -27,7 +27,7 @@ services:
       UPLOAD_DIR: /data/uploads
       CONFIG_FILE: /config/app.env
       WEB_DIST: apps/web/dist
-      APP_VERSION: ${APP_VERSION:-0.3.0}
+      APP_VERSION: ${APP_VERSION:-0.3.1}
       # Initial secrets (compose / host .env). Prefer values already in /config/app.env after first boot.
       # Required on first install (host .env). After first boot, /config/app.env holds it
       # so you can migrate hosts with only the data+config volumes.

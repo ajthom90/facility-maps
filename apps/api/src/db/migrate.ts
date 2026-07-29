@@ -4,15 +4,18 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { env } from "../lib/env.js";
 import { openSqlite } from "./client.js";
+import { ensureSchemaCompat } from "./ensure-schema.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-/** Apply committed SQL migrations from apps/api/drizzle. */
+/** Apply committed SQL migrations from apps/api/drizzle, then compat upgrades. */
 export function runMigrations(sqlitePath = env.SQLITE_PATH): void {
   const sqlite = openSqlite(sqlitePath);
   const db = drizzle(sqlite);
   const migrationsFolder = path.resolve(__dirname, "../../drizzle");
   migrate(db, { migrationsFolder });
+  // Idempotent upgrades for DBs that applied an older 0000_init before hierarchy modes.
+  ensureSchemaCompat(sqlite);
   sqlite.close();
 }
 

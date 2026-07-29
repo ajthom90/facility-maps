@@ -23,7 +23,7 @@
 # Health:     http://<truenas-ip>:3000/api/health
 #
 # Image: pin a release tag for production. Use :edge only if you want main builds.
-#   ghcr.io/ajthom90/facility-maps:0.3.0
+#   ghcr.io/ajthom90/facility-maps:0.3.1
 #   ghcr.io/ajthom90/facility-maps:latest
 #
 # If the GHCR package is private, log in on the TrueNAS host first:
@@ -33,7 +33,7 @@ name: facility-maps
 
 services:
   app:
-    image: ghcr.io/ajthom90/facility-maps:0.3.0
+    image: ghcr.io/ajthom90/facility-maps:0.3.1
     container_name: facility-maps
     ports:
       # host:container — change the left side if 3000 is already used
@@ -45,7 +45,7 @@ services:
       UPLOAD_DIR: /data/uploads
       CONFIG_FILE: /config/app.env
       WEB_DIST: apps/web/dist
-      APP_VERSION: "0.3.0"
+      APP_VERSION: "0.3.1"
 
       # --- Edit these for your install (no .env) ---
       # Min 16 characters. Must not be: change-me-in-production,
