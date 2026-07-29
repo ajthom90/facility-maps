@@ -186,20 +186,46 @@ describe("public APIs", () => {
     expect(res.status).toBe(404);
   });
 
-  it("lists layer presets including evacuation types", async () => {
+  it("lists layer presets including evacuation and medical types", async () => {
     const res = await app.request("/api/presets");
     expect(res.status).toBe(200);
     const body = await res.json();
+    const slugs = body.presets.map((p: { slug: string }) => p.slug);
+    expect(slugs).toEqual(
+      expect.arrayContaining([
+        "all",
+        "evacuation",
+        "fire_response",
+        "medical",
+        "spill_chemical",
+        "utilities",
+        "hazards",
+      ])
+    );
+
     const evac = body.presets.find((p: { slug: string }) => p.slug === "evacuation");
     expect(evac).toBeTruthy();
     expect(evac.featureTypes).toEqual(
-      expect.arrayContaining(["exit", "safe_haven", "first_aid"])
+      expect.arrayContaining([
+        "exit",
+        "assembly_point",
+        "safe_haven",
+        "emergency_phone",
+        "first_aid",
+        "aed",
+      ])
     );
     expect(evac).toMatchObject({
       id: expect.any(String),
       slug: "evacuation",
       sortOrder: expect.any(Number),
     });
+
+    const medical = body.presets.find((p: { slug: string }) => p.slug === "medical");
+    expect(medical).toBeTruthy();
+    expect(medical.featureTypes).toEqual(
+      expect.arrayContaining(["aed", "first_aid", "eye_wash", "safety_shower"])
+    );
   });
 
   it("serves upload files with content type", async () => {

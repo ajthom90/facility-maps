@@ -4,18 +4,28 @@ import en from "../src/locales/en.json";
 /** Mirrors apps/api/src/lib/feature-types.ts FEATURE_TYPES */
 const FEATURE_TYPES = [
   "exit",
+  "assembly_point",
+  "safe_haven",
   "fire_extinguisher",
-  "co_detector",
-  "hazard",
-  "chemical_storage",
+  "fire_alarm_pull",
+  "aed",
   "first_aid",
+  "eye_wash",
+  "safety_shower",
+  "spill_kit",
+  "emergency_phone",
   "water_shutoff",
   "gas_shutoff",
   "electrical_panel",
+  "loto_isolation",
   "roof_access",
-  "safe_haven",
-  "high_pressure",
+  "hazard",
+  "chemical_storage",
   "flammable_storage",
+  "high_pressure",
+  "co_detector",
+  "confined_space",
+  "sds_station",
 ] as const;
 
 /** Mirrors apps/api/src/lib/feature-types.ts PRESET_SEEDS slugs */
@@ -23,6 +33,8 @@ const PRESET_SLUGS = [
   "all",
   "evacuation",
   "fire_response",
+  "medical",
+  "spill_chemical",
   "utilities",
   "hazards",
 ] as const;

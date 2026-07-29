@@ -6,18 +6,28 @@ import type { LayerPreset } from "../src/types";
 /** Mirrors apps/api/src/lib/feature-types.ts FEATURE_TYPES */
 const FEATURE_TYPES = [
   "exit",
+  "assembly_point",
+  "safe_haven",
   "fire_extinguisher",
-  "co_detector",
-  "hazard",
-  "chemical_storage",
+  "fire_alarm_pull",
+  "aed",
   "first_aid",
+  "eye_wash",
+  "safety_shower",
+  "spill_kit",
+  "emergency_phone",
   "water_shutoff",
   "gas_shutoff",
   "electrical_panel",
+  "loto_isolation",
   "roof_access",
-  "safe_haven",
-  "high_pressure",
+  "hazard",
+  "chemical_storage",
   "flammable_storage",
+  "high_pressure",
+  "co_detector",
+  "confined_space",
+  "sds_station",
 ] as const;
 
 const presets: LayerPreset[] = [
@@ -30,7 +40,14 @@ const presets: LayerPreset[] = [
   {
     id: "2",
     slug: "evacuation",
-    featureTypes: ["exit", "first_aid", "safe_haven"],
+    featureTypes: [
+      "exit",
+      "assembly_point",
+      "safe_haven",
+      "emergency_phone",
+      "first_aid",
+      "aed",
+    ],
     sortOrder: 1,
   },
   {
@@ -39,6 +56,7 @@ const presets: LayerPreset[] = [
     featureTypes: [
       "exit",
       "fire_extinguisher",
+      "fire_alarm_pull",
       "electrical_panel",
       "gas_shutoff",
       "flammable_storage",
@@ -53,7 +71,14 @@ describe("useLayers", () => {
     const { result } = renderHook(() => useLayers(presets, FEATURE_TYPES));
     act(() => result.current.applyPreset("evacuation"));
     expect([...result.current.activeTypes].sort()).toEqual(
-      ["exit", "first_aid", "safe_haven"].sort(),
+      [
+        "exit",
+        "assembly_point",
+        "safe_haven",
+        "emergency_phone",
+        "first_aid",
+        "aed",
+      ].sort(),
     );
     expect(result.current.activePresetSlug).toBe("evacuation");
   });

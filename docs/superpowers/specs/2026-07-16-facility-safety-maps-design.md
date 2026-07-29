@@ -31,7 +31,7 @@ Authentication is only for admin editing. There is no end-user login for viewing
 - Hierarchy: **Campus → Building → Floor**
 - Floor plans: **SVG preferred**, PNG/JPG fallback
 - Features: **points (pins)** and **polygons (regions)** with type, optional label, optional notes
-- Layer **type toggles** and **seeded presets** (All, Evacuation, Fire response, Utilities, Hazards)
+- Layer **type toggles** and **seeded presets** (All, Evacuation, Fire response, Medical, Spill/chemical, Utilities, Hazards)
 - Public viewer (mobile-first) + admin editor
 - Admin auth: username/password, session cookies, **bootstrap admin from environment** when no users exist
 - **i18n/l10n**: English complete by default; structure ready for additional locale files
@@ -180,23 +180,33 @@ Replacing a plan overwrites the active file reference. Features are retained in 
 - Equipment-style types default to **point**.
 - Area-style types (`safe_haven`, `high_pressure`, and optionally storage/hazard) support **polygon**; admin may still use a pin when appropriate.
 
-#### Feature types (v1)
+#### Feature types (AWAIR-oriented catalog)
 
-| Key | Typical geometry |
-|-----|------------------|
-| `exit` | point |
-| `fire_extinguisher` | point |
-| `co_detector` | point |
-| `hazard` | point or polygon |
-| `chemical_storage` | point or polygon |
-| `first_aid` | point |
-| `water_shutoff` | point |
-| `gas_shutoff` | point |
-| `electrical_panel` | point |
-| `roof_access` | point |
-| `safe_haven` | polygon (or point) |
-| `high_pressure` | polygon (or point) |
-| `flammable_storage` | point or polygon |
+| Key | Typical geometry | Category |
+|-----|------------------|----------|
+| `exit` | point | Life safety |
+| `assembly_point` | point | Life safety |
+| `safe_haven` | polygon (or point) | Life safety |
+| `fire_extinguisher` | point | Fire |
+| `fire_alarm_pull` | point | Fire |
+| `aed` | point | Medical |
+| `first_aid` | point | Medical |
+| `eye_wash` | point | Medical / chemical |
+| `safety_shower` | point | Medical / chemical |
+| `spill_kit` | point | Chemical |
+| `emergency_phone` | point | Life safety |
+| `water_shutoff` | point | Utilities |
+| `gas_shutoff` | point | Utilities |
+| `electrical_panel` | point | Utilities |
+| `loto_isolation` | point | Utilities |
+| `roof_access` | point | Utilities |
+| `hazard` | point or polygon | Hazards |
+| `chemical_storage` | point or polygon | Hazards / right-to-know |
+| `flammable_storage` | point or polygon | Hazards |
+| `high_pressure` | polygon (or point) | Hazards |
+| `co_detector` | point | Hazards |
+| `confined_space` | point or polygon | Hazards |
+| `sds_station` | point | Right-to-know |
 
 Display names come from i18n catalogs, not from hard-coded English only in UI code.
 
@@ -221,13 +231,15 @@ Display names come from i18n catalogs, not from hard-coded English only in UI co
 
 **Seeded presets:**
 
-| Slug | Feature types |
+| slug | Feature types |
 |------|----------------|
 | `all` | All feature types |
-| `evacuation` | `exit`, `safe_haven`, `first_aid` |
-| `fire_response` | `exit`, `fire_extinguisher`, `electrical_panel`, `gas_shutoff`, `flammable_storage`, `hazard` |
-| `utilities` | `water_shutoff`, `gas_shutoff`, `electrical_panel`, `roof_access` |
-| `hazards` | `hazard`, `chemical_storage`, `flammable_storage`, `high_pressure`, `co_detector` |
+| `evacuation` | `exit`, `assembly_point`, `safe_haven`, `emergency_phone`, `first_aid`, `aed` |
+| `fire_response` | `exit`, `fire_extinguisher`, `fire_alarm_pull`, `electrical_panel`, `gas_shutoff`, `flammable_storage`, `hazard` |
+| `medical` | `aed`, `first_aid`, `eye_wash`, `safety_shower`, `emergency_phone` |
+| `spill_chemical` | `spill_kit`, `eye_wash`, `safety_shower`, `chemical_storage`, `sds_station`, `water_shutoff`, `flammable_storage` |
+| `utilities` | `water_shutoff`, `gas_shutoff`, `electrical_panel`, `loto_isolation`, `roof_access` |
+| `hazards` | `hazard`, `chemical_storage`, `flammable_storage`, `high_pressure`, `co_detector`, `confined_space` |
 
 Users can start from a preset and further toggle individual types on or off in the session UI (client state; no need to persist viewer preferences in v1).
 

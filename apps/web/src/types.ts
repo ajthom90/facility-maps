@@ -35,18 +35,28 @@ export type CampusesResponse = {
 /** Mirrors apps/api/src/lib/feature-types.ts FEATURE_TYPES */
 export const FEATURE_TYPES = [
   "exit",
+  "assembly_point",
+  "safe_haven",
   "fire_extinguisher",
-  "co_detector",
-  "hazard",
-  "chemical_storage",
+  "fire_alarm_pull",
+  "aed",
   "first_aid",
+  "eye_wash",
+  "safety_shower",
+  "spill_kit",
+  "emergency_phone",
   "water_shutoff",
   "gas_shutoff",
   "electrical_panel",
+  "loto_isolation",
   "roof_access",
-  "safe_haven",
-  "high_pressure",
+  "hazard",
+  "chemical_storage",
   "flammable_storage",
+  "high_pressure",
+  "co_detector",
+  "confined_space",
+  "sds_station",
 ] as const;
 
 export type FeatureType = (typeof FEATURE_TYPES)[number];
