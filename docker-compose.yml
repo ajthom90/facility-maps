@@ -1,3 +1,7 @@
+# Local stack. For published images use:
+#   image: ghcr.io/ajthom90/facility-maps:0.1.0
+# (or :latest / :edge). On every app start: migrate → seed system presets → listen.
+
 services:
   db:
     image: postgres:16-alpine
@@ -16,7 +20,14 @@ services:
       retries: 10
 
   app:
-    build: .
+    # Prefer building locally; override with a GHCR tag for production pulls:
+    #   IMAGE_TAG=0.1.0 docker compose up -d
+    # or set image: explicitly and remove build:.
+    image: ${FACILITY_MAPS_IMAGE:-facility-maps:local}
+    build:
+      context: .
+      args:
+        APP_VERSION: ${APP_VERSION:-0.1.0}
     ports:
       - "3000:3000"
     environment:
@@ -31,6 +42,8 @@ services:
       UPLOAD_DIR: /data/uploads
       # Relative to container WORKDIR /app (must match Dockerfile ENV)
       WEB_DIST: apps/web/dist
+      # Baked into the image by default; override only for local debugging
+      APP_VERSION: ${APP_VERSION:-0.1.0}
     volumes:
       - uploads:/data/uploads
     depends_on:
