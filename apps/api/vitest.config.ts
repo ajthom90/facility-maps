@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
-    // Integration tests share one Postgres DB (admin_users etc.); avoid races.
+    // Integration suites use separate temp SQLite files; keep serial for simplicity.
     fileParallelism: false,
   },
 });

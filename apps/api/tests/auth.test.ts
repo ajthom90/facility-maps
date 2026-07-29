@@ -1,7 +1,7 @@
 /**
  * Auth integration tests (login, session, me, logout, rate limit).
  *
- * Requires Postgres (Docker Compose `db` service is fine).
+ * Uses a temp SQLite file (no external DB).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
@@ -9,11 +9,11 @@ import { createApp } from "../src/app.js";
 import { createDb, type Db } from "../src/db/client.js";
 import { runMigrations } from "../src/db/migrate.js";
 import { adminUsers } from "../src/db/schema.js";
-import { env } from "../src/lib/env.js";
 import { hashPassword } from "../src/lib/passwords.js";
 import { resetLoginRateLimit } from "../src/middleware/rate-limit-login.js";
+import { makeTestSqlitePath } from "./test-db.js";
 
-const DATABASE_URL = process.env.DATABASE_URL ?? env.DATABASE_URL;
+const SQLITE_PATH = makeTestSqlitePath("auth");
 
 const TEST_USERNAME = "auth-test-admin";
 const TEST_PASSWORD = "auth-test-password-99";
@@ -30,8 +30,8 @@ describe("auth", () => {
   let userId: string;
 
   beforeAll(async () => {
-    await runMigrations(DATABASE_URL);
-    db = createDb(DATABASE_URL);
+    runMigrations(SQLITE_PATH);
+    db = createDb(SQLITE_PATH);
 
     // Upsert dedicated test admin
     const existing = await db

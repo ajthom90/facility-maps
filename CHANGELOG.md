@@ -12,6 +12,24 @@ Container images: `ghcr.io/ajthom90/facility-maps:<version>` (see README).
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-07-29
+
+### Changed
+- **BREAKING:** Replace PostgreSQL with **SQLite** (`better-sqlite3`). Existing Postgres volumes are not auto-migrated.
+- Docker Compose is a **single `app` service** with two named volumes:
+  - `facility-maps-data` → `/data` (DB + uploads)
+  - `facility-maps-config` → `/config` (`app.env` secrets/settings)
+- CI no longer starts a Postgres service; tests use temp SQLite files.
+- Base image uses `node:22-bookworm-slim` for native module prebuilds.
+
+### Added
+- `scripts/backup.sh` / `scripts/restore.sh` for portable host migration archives
+- Auto-write `/config/app.env` on first boot; load config file on startup (fills empty env)
+
+### Removed
+- `postgres` npm dependency and Compose `db` service
+- `DATABASE_URL` environment variable (use `SQLITE_PATH`)
+
 ## [0.1.0] — 2026-07-29
 
 ### Added

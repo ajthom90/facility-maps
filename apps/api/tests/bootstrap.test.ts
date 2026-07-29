@@ -1,7 +1,7 @@
 /**
  * Bootstrap admin creation tests.
  *
- * Requires Postgres (Docker Compose `db` service is fine).
+ * Uses a temp SQLite file (no external DB).
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
@@ -11,8 +11,9 @@ import { adminUsers } from "../src/db/schema.js";
 import { bootstrapAdmin } from "../src/lib/bootstrap.js";
 import { env } from "../src/lib/env.js";
 import { verifyPassword } from "../src/lib/passwords.js";
+import { makeTestSqlitePath } from "./test-db.js";
 
-const DATABASE_URL = process.env.DATABASE_URL ?? env.DATABASE_URL;
+const SQLITE_PATH = makeTestSqlitePath("bootstrap");
 
 describe("bootstrapAdmin", () => {
   let db: Db;
@@ -27,8 +28,8 @@ describe("bootstrapAdmin", () => {
   }>;
 
   beforeAll(async () => {
-    await runMigrations(DATABASE_URL);
-    db = createDb(DATABASE_URL);
+    runMigrations(SQLITE_PATH);
+    db = createDb(SQLITE_PATH);
     previousUsername = env.ADMIN_BOOTSTRAP_USERNAME;
     previousPassword = env.ADMIN_BOOTSTRAP_PASSWORD;
     // Snapshot existing admins so we can restore after destructive tests

@@ -1,7 +1,7 @@
 /**
  * Admin hierarchy CRUD + floor plan upload integration tests.
  *
- * Requires Postgres (Docker Compose `db` service is fine).
+ * Uses a temp SQLite file (no external DB).
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import fs from "node:fs/promises";
@@ -19,10 +19,10 @@ import {
   floorPlans,
   floors,
 } from "../src/db/schema.js";
-import { env } from "../src/lib/env.js";
 import { hashPassword } from "../src/lib/passwords.js";
+import { makeTestSqlitePath } from "./test-db.js";
 
-const DATABASE_URL = process.env.DATABASE_URL ?? env.DATABASE_URL;
+const SQLITE_PATH = makeTestSqlitePath("admin-hierarchy");
 
 const TEST_USERNAME = "hierarchy-test-admin";
 const TEST_PASSWORD = "hierarchy-test-password-99";
@@ -50,8 +50,8 @@ describe("admin hierarchy CRUD + plan upload", () => {
   let createdCampusIds: string[] = [];
 
   beforeAll(async () => {
-    await runMigrations(DATABASE_URL);
-    db = createDb(DATABASE_URL);
+    runMigrations(SQLITE_PATH);
+    db = createDb(SQLITE_PATH);
     await seed(db);
 
     uploadDir = await fs.mkdtemp(path.join(os.tmpdir(), "fm-admin-uploads-"));

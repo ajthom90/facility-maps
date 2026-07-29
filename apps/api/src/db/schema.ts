@@ -1,26 +1,35 @@
 import {
-  boolean,
   integer,
-  jsonb,
-  pgTable,
+  sqliteTable,
   text,
-  timestamp,
   unique,
-  uuid,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 
-export const campuses = pgTable("campuses", {
-  id: uuid("id").defaultRandom().primaryKey(),
+/** Application-level UUID (text). Generated in JS when omitted on insert. */
+function idColumn() {
+  return text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID());
+}
+
+function createdAtColumn() {
+  return integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date());
+}
+
+export const campuses = sqliteTable("campuses", {
+  id: idColumn(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   sortOrder: integer("sort_order").notNull().default(0),
 });
 
-export const buildings = pgTable(
+export const buildings = sqliteTable(
   "buildings",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    campusId: uuid("campus_id")
+    id: idColumn(),
+    campusId: text("campus_id")
       .notNull()
       .references(() => campuses.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
@@ -30,11 +39,11 @@ export const buildings = pgTable(
   (t) => [unique("buildings_campus_id_slug_unique").on(t.campusId, t.slug)]
 );
 
-export const floors = pgTable(
+export const floors = sqliteTable(
   "floors",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    buildingId: uuid("building_id")
+    id: idColumn(),
+    buildingId: text("building_id")
       .notNull()
       .references(() => buildings.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
@@ -45,9 +54,9 @@ export const floors = pgTable(
   (t) => [unique("floors_building_id_slug_unique").on(t.buildingId, t.slug)]
 );
 
-export const floorPlans = pgTable("floor_plans", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  floorId: uuid("floor_id")
+export const floorPlans = sqliteTable("floor_plans", {
+  id: idColumn(),
+  floorId: text("floor_id")
     .notNull()
     .unique()
     .references(() => floors.id, { onDelete: "cascade" }),
@@ -55,34 +64,40 @@ export const floorPlans = pgTable("floor_plans", {
   mimeType: text("mime_type").notNull(),
   width: integer("width"),
   height: integer("height"),
-  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+  uploadedAt: integer("uploaded_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
-export const features = pgTable("features", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  floorId: uuid("floor_id")
+export const features = sqliteTable("features", {
+  id: idColumn(),
+  floorId: text("floor_id")
     .notNull()
     .references(() => floors.id, { onDelete: "cascade" }),
   type: text("type").notNull(),
-  geometry: jsonb("geometry").notNull(),
+  /** Point or polygon geometry (JSON). */
+  geometry: text("geometry", { mode: "json" }).notNull(),
   label: text("label"),
   notes: text("notes"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: createdAtColumn(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date())
+    .$onUpdateFn(() => new Date()),
 });
 
-export const adminUsers = pgTable("admin_users", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const adminUsers = sqliteTable("admin_users", {
+  id: idColumn(),
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  disabled: boolean("disabled").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  disabled: integer("disabled", { mode: "boolean" }).notNull().default(false),
+  createdAt: createdAtColumn(),
 });
 
-export const layerPresets = pgTable("layer_presets", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const layerPresets = sqliteTable("layer_presets", {
+  id: idColumn(),
   slug: text("slug").notNull().unique(),
-  /** Stored as string[]; seed stores full FEATURE_TYPES for "all" (no null/"*" special case in DB). */
-  featureTypes: jsonb("feature_types").$type<string[]>().notNull(),
+  /** Stored as JSON array of feature type strings. */
+  featureTypes: text("feature_types", { mode: "json" }).$type<string[]>().notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
 });

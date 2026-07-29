@@ -1,55 +1,61 @@
-# Local stack. For published images use:
-#   image: ghcr.io/ajthom90/facility-maps:0.1.0
-# (or :latest / :edge). On every app start: migrate → seed system presets → listen.
+# Facility Safety Maps — single-container SQLite deploy.
+#
+# Portable volumes (copy these to move hosts):
+#   facility-maps-data   → SQLite DB + floor-plan uploads  (/data)
+#   facility-maps-config → app.env secrets & settings     (/config)
+#
+# First start: set SESSION_SECRET in a host .env (see .env.example).
+# The app writes /config/app.env on first boot so later host moves only
+# need the two volumes (+ this compose file / image tag).
+
+name: facility-maps
 
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: facility
-      POSTGRES_PASSWORD: facility
-      POSTGRES_DB: facility_maps
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U facility -d facility_maps"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   app:
-    # Prefer building locally; override with a GHCR tag for production pulls:
-    #   IMAGE_TAG=0.1.0 docker compose up -d
-    # or set image: explicitly and remove build:.
     image: ${FACILITY_MAPS_IMAGE:-facility-maps:local}
     build:
       context: .
       args:
-        APP_VERSION: ${APP_VERSION:-0.1.0}
+        APP_VERSION: ${APP_VERSION:-0.2.0}
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
     environment:
       PORT: 3000
-      DATABASE_URL: postgres://facility:facility@db:5432/facility_maps
-      # Required: set a long random string in .env (no weak default; production rejects placeholders)
-      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env — see .env.example}
-      # false for plain HTTP (default Compose). Set true when serving over HTTPS.
+      NODE_ENV: production
+      # Data volume layout
+      SQLITE_PATH: /data/db/facility-maps.sqlite
+      UPLOAD_DIR: /data/uploads
+      CONFIG_FILE: /config/app.env
+      WEB_DIST: apps/web/dist
+      APP_VERSION: ${APP_VERSION:-0.2.0}
+      # Initial secrets (compose / host .env). Prefer values already in /config/app.env after first boot.
+      # Required on first install (host .env). After first boot, /config/app.env holds it
+      # so you can migrate hosts with only the data+config volumes.
+      SESSION_SECRET: ${SESSION_SECRET:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       ADMIN_BOOTSTRAP_USERNAME: ${ADMIN_BOOTSTRAP_USERNAME:-admin}
       ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-changeme}
-      UPLOAD_DIR: /data/uploads
-      # Relative to container WORKDIR /app (must match Dockerfile ENV)
-      WEB_DIST: apps/web/dist
-      # Baked into the image by default; override only for local debugging
-      APP_VERSION: ${APP_VERSION:-0.1.0}
     volumes:
-      - uploads:/data/uploads
-    depends_on:
-      db:
-        condition: service_healthy
+      # All mutable application data (DB + plans) — back this up
+      - data:/data
+      # Portable configuration (SESSION_SECRET, bootstrap, etc.)
+      - config:/config
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
-  pgdata:
-  uploads:
+  data:
+    name: facility-maps-data
+  config:
+    name: facility-maps-config

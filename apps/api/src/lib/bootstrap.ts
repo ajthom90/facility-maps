@@ -16,7 +16,7 @@ export async function bootstrapAdmin(db: Db): Promise<void> {
   }
 
   const [row] = await db
-    .select({ count: sql<number>`count(*)::int` })
+    .select({ count: sql<number>`count(*)` })
     .from(adminUsers);
   if ((row?.count ?? 0) > 0) {
     return;

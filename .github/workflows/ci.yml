@@ -10,22 +10,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: facility
-          POSTGRES_PASSWORD: facility
-          POSTGRES_DB: facility_maps
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U facility -d facility_maps"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     env:
-      DATABASE_URL: postgres://facility:facility@localhost:5432/facility_maps
       SESSION_SECRET: ci-test-session-secret-32chars
     steps:
       - uses: actions/checkout@v4

@@ -124,7 +124,7 @@ export function adminUsersRoutes(getDb: () => Db) {
 
       if (!target.disabled) {
         const [row] = await db
-          .select({ count: sql<number>`count(*)::int` })
+          .select({ count: sql<number>`count(*)` })
           .from(adminUsers)
           .where(and(eq(adminUsers.disabled, false), ne(adminUsers.id, id)));
         if ((row?.count ?? 0) === 0) {

@@ -1,6 +1,6 @@
 {
   "name": "@facility-maps/api",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,13 +16,14 @@
   "dependencies": {
     "@hono/node-server": "^1.14.1",
     "bcryptjs": "^3.0.2",
+    "better-sqlite3": "^11.10.0",
     "drizzle-orm": "^0.43.1",
     "hono": "^4.7.10",
-    "postgres": "^3.4.5",
     "zod": "^3.25.28"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.15.21",
     "drizzle-kit": "^0.31.1",
     "tsx": "4.19.4",

@@ -76,7 +76,7 @@ One Docker Compose stack:
 | UI | React (Vite) + TypeScript | Mobile-friendly SPA, strong ecosystem |
 | Map surface | Pan/zoom over SVG or image (custom or Leaflet image overlay) | Floor plans are not geographic maps |
 | API | Node (Fastify or Hono) + TypeScript | Same language as UI; simple Docker image |
-| DB | PostgreSQL | Reliable in Docker; easy backups |
+| DB | SQLite (file on data volume) | Single-container deploy; easy host migration via volumes |
 | Auth | HTTP-only session cookie; bcrypt (or argon2) password hashes | Matches internal simple-admin needs |
 | i18n | Client (and admin) message catalogs, e.g. `en.json` | Default English; add locales by file |
 | Deploy | Docker Compose: `app` + `db` + volumes | Internal Linux hosting |

@@ -44,8 +44,9 @@ Examples **for this project**:
 - Changing auth/session cookie behavior in a way that forces re-login design changes or breaks reverse proxies (e.g. always requiring HTTPS with no opt-out)
 - Dropping env vars that were required/documented (`SESSION_SECRET`, `DATABASE_URL`, …) or changing their meaning incompatibly
 - Database migrations that are not safely forward-only for existing Compose volumes (data loss, manual steps required)
-- Changing default Compose service names/ports/volume paths in a way that silently orphans data
-- Requiring a new major Node/Postgres that old installs cannot meet without a coordinated upgrade
+- Changing default Compose service names/ports/volume paths in a way that silently orphans data (`facility-maps-data`, `facility-maps-config`)
+- Swapping storage engines (e.g. SQLite ↔ Postgres) without an automated migration path
+- Requiring a new major Node that old installs cannot meet without a coordinated upgrade
 
 **Not** major: pure internal refactors, dependency bumps that stay compatible, new optional env vars with defaults.
 

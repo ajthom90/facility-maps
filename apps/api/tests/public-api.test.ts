@@ -1,8 +1,8 @@
 /**
  * Public read API integration tests.
  *
- * Requires Postgres (Docker Compose `db` service is fine):
- *   DATABASE_URL=postgres://facility:facility@localhost:5432/facility_maps
+ * Uses a temp SQLite file (no external DB).
+ *   SQLITE_PATH=/tmp/facility-maps-test.sqlite
  *
  * Migrations + seed run in beforeAll when missing data.
  */
@@ -15,7 +15,6 @@ import { createApp } from "../src/app.js";
 import { createDb, type Db } from "../src/db/client.js";
 import { runMigrations } from "../src/db/migrate.js";
 import { seed } from "../src/db/seed.js";
-import { env } from "../src/lib/env.js";
 import {
   buildings,
   campuses,
@@ -23,8 +22,9 @@ import {
   floorPlans,
   floors,
 } from "../src/db/schema.js";
+import { makeTestSqlitePath } from "./test-db.js";
 
-const DATABASE_URL = process.env.DATABASE_URL ?? env.DATABASE_URL;
+const SQLITE_PATH = makeTestSqlitePath("public-api");
 
 describe("public APIs", () => {
   let db: Db;
@@ -37,8 +37,8 @@ describe("public APIs", () => {
   let planRelativePath: string;
 
   beforeAll(async () => {
-    await runMigrations(DATABASE_URL);
-    db = createDb(DATABASE_URL);
+    runMigrations(SQLITE_PATH);
+    db = createDb(SQLITE_PATH);
     await seed(db);
 
     uploadDir = await fs.mkdtemp(path.join(os.tmpdir(), "fm-uploads-"));

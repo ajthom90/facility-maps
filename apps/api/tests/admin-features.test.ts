@@ -1,7 +1,7 @@
 /**
  * Admin features CRUD + users + presets integration tests.
  *
- * Requires Postgres (Docker Compose `db` service is fine).
+ * Uses a temp SQLite file (no external DB).
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
@@ -17,10 +17,10 @@ import {
   floors,
   layerPresets,
 } from "../src/db/schema.js";
-import { env } from "../src/lib/env.js";
 import { hashPassword } from "../src/lib/passwords.js";
+import { makeTestSqlitePath } from "./test-db.js";
 
-const DATABASE_URL = process.env.DATABASE_URL ?? env.DATABASE_URL;
+const SQLITE_PATH = makeTestSqlitePath("admin-features");
 
 const TEST_USERNAME = "features-test-admin";
 const TEST_PASSWORD = "features-test-password-99";
@@ -44,8 +44,8 @@ describe("admin features, users, and presets", () => {
   let originalEvacuationTypes: string[];
 
   beforeAll(async () => {
-    await runMigrations(DATABASE_URL);
-    db = createDb(DATABASE_URL);
+    runMigrations(SQLITE_PATH);
+    db = createDb(SQLITE_PATH);
     await seed(db);
 
     const passwordHash = await hashPassword(TEST_PASSWORD);
