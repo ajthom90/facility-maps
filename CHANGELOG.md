@@ -12,12 +12,6 @@ Container images: `ghcr.io/ajthom90/facility-maps:<version>` (see README).
 
 ## [Unreleased]
 
-### Added
-- GitHub Actions CI (tests + build) and GHCR container publish workflow
-- `APP_VERSION` baked into the image; exposed on `GET /api/health`
-- Version sync script (`npm run version:sync` / `version:check`)
-- Startup always re-runs system preset seed after migrations (image updates pick up new feature types)
-
 ## [0.1.0] — 2026-07-29
 
 ### Added
@@ -25,3 +19,10 @@ Container images: `ghcr.io/ajthom90/facility-maps:<version>` (see README).
 - AWAIR-oriented feature type catalog and scenario presets (evacuation, fire, medical, spill/chemical, utilities, hazards)
 - Docker Compose stack (app + Postgres), multi-stage production image
 - Public floor maps, admin editor, layer presets, English i18n
+- GitHub Actions CI (tests + build) and GHCR container publish workflow
+- `APP_VERSION` baked into the image; exposed on `GET /api/health`
+- Version sync script (`npm run version:sync` / `version:check`)
+- Startup always re-runs system preset seed after migrations (image updates pick up new feature types)
+
+### Fixed
+- `npm ci` / Docker build esbuild binary mismatch (`tsx` vs `vite`); pin `tsx@4.19.4` and override `esbuild@0.25.12`
