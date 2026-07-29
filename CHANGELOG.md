@@ -12,9 +12,15 @@ Container images: `ghcr.io/ajthom90/facility-maps:<version>` (see README).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-07-29
+
 ### Added
+- **Per-campus hierarchy modes:** `full` (Campus→Building→Floor), `no_buildings` (Campus→Floor), `single_map` (one site map). Configurable in admin Structure; public routes and APIs adapt.
 - `docker-compose.truenas.yml` — TrueNAS SCALE sample with all settings inlined (no `.env`)
-- **Per-campus hierarchy modes:** `full` (Campus→Building→Floor), `no_buildings` (Campus→Floor), `single_map` (one site map). Configurable in admin Structure.
+
+### Changed
+- Floors always store `campus_id`; `building_id` is optional (null when campus has no buildings layer).
+- Init SQLite schema includes `hierarchy_mode` and flexible floor parents. **Fresh volumes recommended** if upgrading from 0.2.0 (init migration was reshaped; empty DBs only).
 
 ## [0.2.0] — 2026-07-29
 

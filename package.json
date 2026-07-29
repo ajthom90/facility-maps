@@ -1,6 +1,6 @@
 {
   "name": "facility-maps",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Self-hosted interactive facility safety maps (Minnesota AWAIR-oriented)",
   "license": "MIT",
@@ -8,7 +8,9 @@
     "type": "git",
     "url": "https://github.com/ajthom90/facility-maps.git"
   },
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev": "npm run dev -w @facility-maps/api & npm run dev -w @facility-maps/web",
     "test": "npm run test -w @facility-maps/api && npm run test -w @facility-maps/web",

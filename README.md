@@ -112,7 +112,7 @@ Images are built by GitHub Actions and published to the GitHub Container Registr
 | `ghcr.io/ajthom90/facility-maps:sha-<short>` | Exact commit build |
 
 ```bash
-docker pull ghcr.io/ajthom90/facility-maps:0.2.0
+docker pull ghcr.io/ajthom90/facility-maps:0.3.0
 # or
 docker pull ghcr.io/ajthom90/facility-maps:latest
 ```
@@ -127,13 +127,13 @@ docker run --rm -p 3000:3000 \
   -e ADMIN_BOOTSTRAP_PASSWORD='change-me' \
   -v facility-maps-data:/data \
   -v facility-maps-config:/config \
-  ghcr.io/ajthom90/facility-maps:0.2.0
+  ghcr.io/ajthom90/facility-maps:0.3.0
 ```
 
 Or point Compose at a published tag:
 
 ```bash
-export FACILITY_MAPS_IMAGE=ghcr.io/ajthom90/facility-maps:0.2.0
+export FACILITY_MAPS_IMAGE=ghcr.io/ajthom90/facility-maps:0.3.0
 docker compose pull && docker compose up -d
 ```
 
