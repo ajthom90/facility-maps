@@ -12,6 +12,9 @@ Container images: `ghcr.io/ajthom90/facility-maps:<version>` (see README).
 
 ## [Unreleased]
 
+### Added
+- `docker-compose.truenas.yml` — TrueNAS SCALE sample with all settings inlined (no `.env`)
+
 ## [0.2.0] — 2026-07-29
 
 ### Changed

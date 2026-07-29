@@ -1,0 +1,97 @@
+# Facility Safety Maps — TrueNAS SCALE sample (no .env file)
+#
+# TrueNAS SCALE Custom Apps / YAML installs often do not load a host .env.
+# Put every setting directly in this file, then paste or install as a custom app.
+#
+# Before first start:
+#   1. Create two host datasets (or directories), e.g.:
+#        /mnt/<pool>/apps/facility-maps/data
+#        /mnt/<pool>/apps/facility-maps/config
+#   2. Replace the host paths under volumes: below with your real paths.
+#   3. Replace SESSION_SECRET with a long random string (16+ chars).
+#        Example from a shell:  openssl rand -hex 32
+#   4. Set a strong ADMIN_BOOTSTRAP_PASSWORD (only used when the DB has no users).
+#   5. Set COOKIE_SECURE to "true" if you terminate TLS (Traefik, nginx, TrueNAS
+#      certificate, etc.) in front of this app; leave "false" for plain HTTP on LAN.
+#
+# Install options:
+#   • Apps → Discover Apps → Custom App → paste this YAML (SCALE UI varies by version)
+#   • Or shell:  docker compose -f docker-compose.truenas.yml up -d
+#
+# Public UI:  http://<truenas-ip>:3000/
+# Admin:      http://<truenas-ip>:3000/admin/login
+# Health:     http://<truenas-ip>:3000/api/health
+#
+# Image: pin a release tag for production. Use :edge only if you want main builds.
+#   ghcr.io/ajthom90/facility-maps:0.2.0
+#   ghcr.io/ajthom90/facility-maps:latest
+#
+# If the GHCR package is private, log in on the TrueNAS host first:
+#   docker login ghcr.io
+
+name: facility-maps
+
+services:
+  app:
+    image: ghcr.io/ajthom90/facility-maps:0.2.0
+    container_name: facility-maps
+    ports:
+      # host:container — change the left side if 3000 is already used
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      NODE_ENV: production
+      SQLITE_PATH: /data/db/facility-maps.sqlite
+      UPLOAD_DIR: /data/uploads
+      CONFIG_FILE: /config/app.env
+      WEB_DIST: apps/web/dist
+      APP_VERSION: "0.2.0"
+
+      # --- Edit these for your install (no .env) ---
+      # Min 16 characters. Must not be: change-me-in-production,
+      # dev-only-change-me, or generate-a-long-random-string.
+      SESSION_SECRET: "REPLACE_WITH_OPENSSL_RAND_HEX_32_OUTPUT"
+
+      # "false" = plain HTTP (typical internal TrueNAS LAN)
+      # "true"  = only when the browser uses HTTPS to reach the app
+      COOKIE_SECURE: "false"
+
+      # Bootstrap admin is created only when the users table is empty.
+      ADMIN_BOOTSTRAP_USERNAME: "admin"
+      ADMIN_BOOTSTRAP_PASSWORD: "REPLACE_WITH_A_STRONG_PASSWORD"
+    volumes:
+      # Prefer host path datasets so TrueNAS snapshots / replication cover app data.
+      # Create the directories first; the app writes SQLite under data/db/ and plans under data/uploads/.
+      - type: bind
+        source: /mnt/tank/apps/facility-maps/data
+        target: /data
+      - type: bind
+        source: /mnt/tank/apps/facility-maps/config
+        target: /config
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+# Optional: use Docker named volumes instead of host paths (comment out the
+# bind mounts above and uncomment below). Snapshots are harder; host paths
+# are usually better on TrueNAS.
+#
+#     volumes:
+#       - facility-maps-data:/data
+#       - facility-maps-config:/config
+#
+# volumes:
+#   facility-maps-data:
+#     name: facility-maps-data
+#   facility-maps-config:
+#     name: facility-maps-config

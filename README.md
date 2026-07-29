@@ -39,6 +39,19 @@ Default bootstrap admin (first empty DB only):
 
 **Cookies and HTTPS:** Compose defaults to `COOKIE_SECURE=false` so admin login works over plain HTTP on internal networks. When you terminate TLS / serve over HTTPS, set `COOKIE_SECURE=true` so session cookies are only sent on secure connections.
 
+### TrueNAS SCALE (no `.env` file)
+
+TrueNAS SCALE Custom Apps / YAML installs often cannot use a host `.env`. Use the sample compose that inlines every setting:
+
+- [`docker-compose.truenas.yml`](./docker-compose.truenas.yml)
+
+1. Create host datasets (example): `/mnt/<pool>/apps/facility-maps/data` and `…/config`
+2. Edit the sample: host paths, `SESSION_SECRET` (`openssl rand -hex 32`), bootstrap password, image tag, port
+3. Install as a **Custom App** (paste YAML) or run: `docker compose -f docker-compose.truenas.yml up -d`
+4. Open `http://<truenas-ip>:3000/` and `/admin/login`
+
+Host-path binds are used so TrueNAS snapshots/replication cover DB + uploads. Named Docker volumes are documented as an optional alternative in the sample file.
+
 ### What is stored where (portable volumes)
 
 | Volume name | Mount | Contents |
