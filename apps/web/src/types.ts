@@ -1,8 +1,11 @@
+export type HierarchyMode = "full" | "no_buildings" | "single_map";
+
 export type CampusSummary = {
   id: string;
   name: string;
   slug: string;
   sortOrder: number;
+  hierarchyMode: HierarchyMode;
 };
 
 export type BuildingSummary = {
@@ -22,6 +25,8 @@ export type FloorSummary = {
 
 export type CampusDetail = CampusSummary & {
   buildings: BuildingSummary[];
+  floors: FloorSummary[];
+  mapFloorId?: string | null;
 };
 
 export type BuildingDetail = BuildingSummary & {

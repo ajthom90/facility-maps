@@ -28,7 +28,7 @@ Authentication is only for admin editing. There is no end-user login for viewing
 
 ### In v1
 
-- Hierarchy: **Campus → Building → Floor**
+- Hierarchy: **Campus → Building → Floor** by default; per-campus modes also support **Campus → Floor** and **single site map** (see `2026-07-29-hierarchy-modes-design.md`)
 - Floor plans: **SVG preferred**, PNG/JPG fallback
 - Features: **points (pins)** and **polygons (regions)** with type, optional label, optional notes
 - Layer **type toggles** and **seeded presets** (All, Evacuation, Fire response, Medical, Spill/chemical, Utilities, Hazards)

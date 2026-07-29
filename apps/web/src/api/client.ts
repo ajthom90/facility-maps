@@ -23,11 +23,14 @@ export type ManagedAdminUser = {
   createdAt: string;
 };
 
+export type HierarchyMode = "full" | "no_buildings" | "single_map";
+
 export type CampusRecord = {
   id: string;
   name: string;
   slug: string;
   sortOrder: number;
+  hierarchyMode: HierarchyMode;
 };
 
 export type BuildingRecord = {
@@ -40,7 +43,8 @@ export type BuildingRecord = {
 
 export type FloorRecord = {
   id: string;
-  buildingId: string;
+  campusId: string;
+  buildingId: string | null;
   name: string;
   slug: string;
   level: number;
@@ -132,6 +136,13 @@ export const api = {
     );
   },
 
+  /** Campus-level floor (no_buildings / single_map). */
+  getCampusFloor(campusSlug: string, floorSlug: string): Promise<FloorDetail> {
+    return requestJson<FloorDetail>(
+      `/api/campuses/${encodeURIComponent(campusSlug)}/floors/${encodeURIComponent(floorSlug)}`,
+    );
+  },
+
   getFloorById(id: string): Promise<FloorDetail> {
     return requestJson<FloorDetail>(`/api/floors/${encodeURIComponent(id)}`);
   },
@@ -168,6 +179,7 @@ export const api = {
     name: string;
     slug?: string;
     sortOrder?: number;
+    hierarchyMode?: HierarchyMode;
   }): Promise<CampusRecord> {
     return requestJson<CampusRecord>("/api/admin/campuses", {
       method: "POST",
@@ -177,7 +189,12 @@ export const api = {
 
   updateCampus(
     id: string,
-    input: { name?: string; slug?: string; sortOrder?: number },
+    input: {
+      name?: string;
+      slug?: string;
+      sortOrder?: number;
+      hierarchyMode?: HierarchyMode;
+    },
   ): Promise<CampusRecord> {
     return requestJson<CampusRecord>(`/api/admin/campuses/${encodeURIComponent(id)}`, {
       method: "PATCH",
@@ -220,7 +237,8 @@ export const api = {
   },
 
   createFloor(input: {
-    buildingId: string;
+    campusId?: string;
+    buildingId?: string;
     name: string;
     slug?: string;
     level?: number;
@@ -235,7 +253,8 @@ export const api = {
   updateFloor(
     id: string,
     input: {
-      buildingId?: string;
+      campusId?: string;
+      buildingId?: string | null;
       name?: string;
       slug?: string;
       level?: number;

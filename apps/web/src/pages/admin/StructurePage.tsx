@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { api } from "../../api/client";
+import { api, type HierarchyMode } from "../../api/client";
 import type { BuildingSummary, CampusSummary, FloorSummary } from "../../types";
 
 type CampusNode = CampusSummary & {
   buildings: (BuildingSummary & { floors: FloorSummary[] })[];
+  floors: FloorSummary[];
+  mapFloorId?: string | null;
 };
+
+const HIERARCHY_OPTIONS: { value: HierarchyMode; labelKey: string }[] = [
+  { value: "full", labelKey: "hierarchyModeFull" },
+  { value: "no_buildings", labelKey: "hierarchyModeNoBuildings" },
+  { value: "single_map", labelKey: "hierarchyModeSingleMap" },
+];
 
 export function StructurePage() {
   const { t } = useTranslation();
@@ -14,6 +22,7 @@ export function StructurePage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [newCampusName, setNewCampusName] = useState("");
+  const [newCampusMode, setNewCampusMode] = useState<HierarchyMode>("full");
   const [newBuildingName, setNewBuildingName] = useState<Record<string, string>>({});
   const [newFloorName, setNewFloorName] = useState<Record<string, string>>({});
   const [newFloorLevel, setNewFloorLevel] = useState<Record<string, string>>({});
@@ -26,13 +35,28 @@ export function StructurePage() {
     const nodes: CampusNode[] = await Promise.all(
       campuses.map(async (campus) => {
         const detail = await api.getCampus(campus.slug);
-        const buildings = await Promise.all(
-          detail.buildings.map(async (building) => {
-            const b = await api.getBuilding(campus.slug, building.slug);
-            return { ...building, floors: b.floors };
-          }),
-        );
-        return { ...campus, buildings };
+        if (detail.hierarchyMode === "full") {
+          const buildings = await Promise.all(
+            detail.buildings.map(async (building) => {
+              const b = await api.getBuilding(campus.slug, building.slug);
+              return { ...building, floors: b.floors };
+            }),
+          );
+          return {
+            ...campus,
+            hierarchyMode: detail.hierarchyMode,
+            buildings,
+            floors: [],
+            mapFloorId: null,
+          };
+        }
+        return {
+          ...campus,
+          hierarchyMode: detail.hierarchyMode,
+          buildings: [],
+          floors: detail.floors ?? [],
+          mapFloorId: detail.mapFloorId,
+        };
       }),
     );
     setTree(nodes);
@@ -90,8 +114,9 @@ export function StructurePage() {
     const name = newCampusName.trim();
     if (!name) return;
     await withBusy(async () => {
-      await api.createCampus({ name });
+      await api.createCampus({ name, hierarchyMode: newCampusMode });
       setNewCampusName("");
+      setNewCampusMode("full");
     });
   }
 
@@ -100,6 +125,13 @@ export function StructurePage() {
     if (!name || name === current) return;
     await withBusy(async () => {
       await api.updateCampus(id, { name });
+    });
+  }
+
+  async function onChangeMode(id: string, current: HierarchyMode, next: HierarchyMode) {
+    if (next === current) return;
+    await withBusy(async () => {
+      await api.updateCampus(id, { hierarchyMode: next });
     });
   }
 
@@ -136,21 +168,27 @@ export function StructurePage() {
     });
   }
 
-  async function onCreateFloor(e: FormEvent, buildingId: string) {
+  async function onCreateFloor(
+    e: FormEvent,
+    parentKey: string,
+    opts: { buildingId?: string; campusId?: string },
+  ) {
     e.preventDefault();
-    const name = (newFloorName[buildingId] ?? "").trim();
+    const name = (newFloorName[parentKey] ?? "").trim();
     if (!name) return;
-    const levelRaw = (newFloorLevel[buildingId] ?? "").trim();
+    const levelRaw = (newFloorLevel[parentKey] ?? "").trim();
     const level = levelRaw === "" ? undefined : Number(levelRaw);
     await withBusy(async () => {
       await api.createFloor({
-        buildingId,
+        ...opts,
         name,
         level: level !== undefined && Number.isFinite(level) ? level : undefined,
       });
-      setNewFloorName((prev) => ({ ...prev, [buildingId]: "" }));
-      setNewFloorLevel((prev) => ({ ...prev, [buildingId]: "" }));
-      setExpandedBuildings((prev) => new Set(prev).add(buildingId));
+      setNewFloorName((prev) => ({ ...prev, [parentKey]: "" }));
+      setNewFloorLevel((prev) => ({ ...prev, [parentKey]: "" }));
+      if (opts.buildingId) {
+        setExpandedBuildings((prev) => new Set(prev).add(opts.buildingId!));
+      }
     });
   }
 
@@ -169,6 +207,93 @@ export function StructurePage() {
     });
   }
 
+  function floorRow(floor: FloorSummary, allowDelete: boolean) {
+    return (
+      <li key={floor.id} style={rowStyle}>
+        <span style={{ fontSize: "0.9rem" }}>
+          {floor.name}
+          <span style={metaStyle}>
+            /{floor.slug} · L{floor.level}
+          </span>
+        </span>
+        <div style={actionsStyle}>
+          <Link
+            to={`/admin/floors/${floor.id}`}
+            style={{
+              ...primaryButtonStyle,
+              textDecoration: "none",
+              display: "inline-block",
+              fontSize: "0.8rem",
+              padding: "0.3rem 0.6rem",
+            }}
+          >
+            {t("editMap")}
+          </Link>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onRenameFloor(floor.id, floor.name)}
+            style={ghostButtonStyle}
+          >
+            {t("rename")}
+          </button>
+          {allowDelete ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onDeleteFloor(floor.id, floor.name)}
+              style={dangerButtonStyle}
+            >
+              {t("delete")}
+            </button>
+          ) : null}
+        </div>
+      </li>
+    );
+  }
+
+  function floorForm(parentKey: string, onSubmit: (e: FormEvent) => void) {
+    return (
+      <form
+        onSubmit={onSubmit}
+        style={{ ...inlineFormStyle, marginBottom: "0.5rem", flexWrap: "wrap" }}
+      >
+        <input
+          value={newFloorName[parentKey] ?? ""}
+          onChange={(e) =>
+            setNewFloorName((prev) => ({
+              ...prev,
+              [parentKey]: e.target.value,
+            }))
+          }
+          placeholder={t("addFloor")}
+          disabled={busy}
+          style={inputStyle}
+        />
+        <input
+          value={newFloorLevel[parentKey] ?? ""}
+          onChange={(e) =>
+            setNewFloorLevel((prev) => ({
+              ...prev,
+              [parentKey]: e.target.value,
+            }))
+          }
+          placeholder={t("level")}
+          inputMode="numeric"
+          disabled={busy}
+          style={{ ...inputStyle, maxWidth: 80 }}
+        />
+        <button
+          type="submit"
+          disabled={busy || !(newFloorName[parentKey] ?? "").trim()}
+          style={primaryButtonStyle}
+        >
+          {t("add")}
+        </button>
+      </form>
+    );
+  }
+
   if (error && !tree) {
     return <p role="alert">{error}</p>;
   }
@@ -182,7 +307,7 @@ export function StructurePage() {
       <div>
         <h1 style={{ margin: "0 0 0.25rem", fontSize: "1.35rem" }}>{t("structure")}</h1>
         <p style={{ margin: 0, color: "#555", fontSize: "0.9rem" }}>
-          {t("campuses")} · {t("buildings")} · {t("floors")}
+          {t("structureHint")}
         </p>
       </div>
 
@@ -192,7 +317,7 @@ export function StructurePage() {
         </p>
       ) : null}
 
-      <form onSubmit={onCreateCampus} style={inlineFormStyle}>
+      <form onSubmit={onCreateCampus} style={{ ...inlineFormStyle, flexWrap: "wrap" }}>
         <input
           value={newCampusName}
           onChange={(e) => setNewCampusName(e.target.value)}
@@ -200,6 +325,19 @@ export function StructurePage() {
           disabled={busy}
           style={inputStyle}
         />
+        <select
+          value={newCampusMode}
+          onChange={(e) => setNewCampusMode(e.target.value as HierarchyMode)}
+          disabled={busy}
+          style={{ ...inputStyle, flex: "0 1 14rem", maxWidth: "100%" }}
+          aria-label={t("hierarchyMode")}
+        >
+          {HIERARCHY_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {t(opt.labelKey)}
+            </option>
+          ))}
+        </select>
         <button type="submit" disabled={busy || !newCampusName.trim()} style={primaryButtonStyle}>
           {t("add")}
         </button>
@@ -208,6 +346,7 @@ export function StructurePage() {
       <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.75rem" }}>
         {tree.map((campus) => {
           const campusOpen = expandedCampuses.has(campus.id);
+          const mode = campus.hierarchyMode;
           return (
             <li key={campus.id} style={cardStyle}>
               <div style={rowStyle}>
@@ -221,6 +360,21 @@ export function StructurePage() {
                   <span style={metaStyle}>/{campus.slug}</span>
                 </button>
                 <div style={actionsStyle}>
+                  <select
+                    value={mode}
+                    disabled={busy}
+                    onChange={(e) =>
+                      onChangeMode(campus.id, mode, e.target.value as HierarchyMode)
+                    }
+                    style={{ ...inputStyle, flex: "0 1 auto", minWidth: 140, maxWidth: 200 }}
+                    aria-label={t("hierarchyMode")}
+                  >
+                    {HIERARCHY_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {t(opt.labelKey)}
+                      </option>
+                    ))}
+                  </select>
                   <button
                     type="button"
                     disabled={busy}
@@ -242,175 +396,175 @@ export function StructurePage() {
 
               {campusOpen ? (
                 <div style={{ marginTop: "0.75rem", paddingLeft: "0.5rem" }}>
-                  <div style={sectionLabelStyle}>{t("buildings")}</div>
-                  <form
-                    onSubmit={(e) => onCreateBuilding(e, campus.id)}
-                    style={{ ...inlineFormStyle, marginBottom: "0.5rem" }}
-                  >
-                    <input
-                      value={newBuildingName[campus.id] ?? ""}
-                      onChange={(e) =>
-                        setNewBuildingName((prev) => ({ ...prev, [campus.id]: e.target.value }))
-                      }
-                      placeholder={t("addBuilding")}
-                      disabled={busy}
-                      style={inputStyle}
-                    />
-                    <button
-                      type="submit"
-                      disabled={busy || !(newBuildingName[campus.id] ?? "").trim()}
-                      style={primaryButtonStyle}
-                    >
-                      {t("add")}
-                    </button>
-                  </form>
-
-                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.5rem" }}>
-                    {campus.buildings.map((building) => {
-                      const buildingOpen = expandedBuildings.has(building.id);
-                      return (
-                        <li
-                          key={building.id}
+                  {mode === "single_map" ? (
+                    <div>
+                      <div style={sectionLabelStyle}>{t("siteMap")}</div>
+                      {campus.floors[0] || campus.mapFloorId ? (
+                        <ul
                           style={{
-                            background: "#f7f7f8",
-                            borderRadius: 6,
-                            border: "1px solid #e8e8ec",
-                            padding: "0.55rem 0.65rem",
+                            listStyle: "none",
+                            padding: 0,
+                            margin: 0,
+                            display: "grid",
+                            gap: "0.35rem",
                           }}
                         >
-                          <div style={rowStyle}>
-                            <button
-                              type="button"
-                              onClick={() => toggleBuilding(building.id)}
-                              style={toggleStyle}
-                              aria-expanded={buildingOpen}
+                          {floorRow(
+                            campus.floors[0] ?? {
+                              id: campus.mapFloorId!,
+                              name: t("siteMap"),
+                              slug: "map",
+                              level: 0,
+                              sortOrder: 0,
+                            },
+                            false,
+                          )}
+                        </ul>
+                      ) : (
+                        <p style={{ fontSize: "0.85rem", color: "#666" }}>{t("emptyPlan")}</p>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {mode === "no_buildings" ? (
+                    <div>
+                      <div style={sectionLabelStyle}>{t("floors")}</div>
+                      {floorForm(campus.id, (e) =>
+                        onCreateFloor(e, campus.id, { campusId: campus.id }),
+                      )}
+                      <ul
+                        style={{
+                          listStyle: "none",
+                          padding: 0,
+                          margin: 0,
+                          display: "grid",
+                          gap: "0.35rem",
+                        }}
+                      >
+                        {campus.floors.map((floor) => floorRow(floor, true))}
+                        {campus.floors.length === 0 ? (
+                          <li style={{ fontSize: "0.85rem", color: "#666" }}>{t("emptyFloors")}</li>
+                        ) : null}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {mode === "full" ? (
+                    <>
+                      <div style={sectionLabelStyle}>{t("buildings")}</div>
+                      <form
+                        onSubmit={(e) => onCreateBuilding(e, campus.id)}
+                        style={{ ...inlineFormStyle, marginBottom: "0.5rem" }}
+                      >
+                        <input
+                          value={newBuildingName[campus.id] ?? ""}
+                          onChange={(e) =>
+                            setNewBuildingName((prev) => ({
+                              ...prev,
+                              [campus.id]: e.target.value,
+                            }))
+                          }
+                          placeholder={t("addBuilding")}
+                          disabled={busy}
+                          style={inputStyle}
+                        />
+                        <button
+                          type="submit"
+                          disabled={busy || !(newBuildingName[campus.id] ?? "").trim()}
+                          style={primaryButtonStyle}
+                        >
+                          {t("add")}
+                        </button>
+                      </form>
+
+                      <ul
+                        style={{
+                          listStyle: "none",
+                          padding: 0,
+                          margin: 0,
+                          display: "grid",
+                          gap: "0.5rem",
+                        }}
+                      >
+                        {campus.buildings.map((building) => {
+                          const buildingOpen = expandedBuildings.has(building.id);
+                          return (
+                            <li
+                              key={building.id}
+                              style={{
+                                background: "#f7f7f8",
+                                borderRadius: 6,
+                                border: "1px solid #e8e8ec",
+                                padding: "0.55rem 0.65rem",
+                              }}
                             >
-                              {buildingOpen ? "▾" : "▸"} {building.name}
-                              <span style={metaStyle}>/{building.slug}</span>
-                            </button>
-                            <div style={actionsStyle}>
-                              <button
-                                type="button"
-                                disabled={busy}
-                                onClick={() => onRenameBuilding(building.id, building.name)}
-                                style={ghostButtonStyle}
-                              >
-                                {t("rename")}
-                              </button>
-                              <button
-                                type="button"
-                                disabled={busy}
-                                onClick={() => onDeleteBuilding(building.id, building.name)}
-                                style={dangerButtonStyle}
-                              >
-                                {t("delete")}
-                              </button>
-                            </div>
-                          </div>
-
-                          {buildingOpen ? (
-                            <div style={{ marginTop: "0.6rem", paddingLeft: "0.35rem" }}>
-                              <div style={sectionLabelStyle}>{t("floors")}</div>
-                              <form
-                                onSubmit={(e) => onCreateFloor(e, building.id)}
-                                style={{ ...inlineFormStyle, marginBottom: "0.5rem", flexWrap: "wrap" }}
-                              >
-                                <input
-                                  value={newFloorName[building.id] ?? ""}
-                                  onChange={(e) =>
-                                    setNewFloorName((prev) => ({
-                                      ...prev,
-                                      [building.id]: e.target.value,
-                                    }))
-                                  }
-                                  placeholder={t("addFloor")}
-                                  disabled={busy}
-                                  style={inputStyle}
-                                />
-                                <input
-                                  value={newFloorLevel[building.id] ?? ""}
-                                  onChange={(e) =>
-                                    setNewFloorLevel((prev) => ({
-                                      ...prev,
-                                      [building.id]: e.target.value,
-                                    }))
-                                  }
-                                  placeholder={t("level")}
-                                  inputMode="numeric"
-                                  disabled={busy}
-                                  style={{ ...inputStyle, maxWidth: 80 }}
-                                />
+                              <div style={rowStyle}>
                                 <button
-                                  type="submit"
-                                  disabled={busy || !(newFloorName[building.id] ?? "").trim()}
-                                  style={primaryButtonStyle}
+                                  type="button"
+                                  onClick={() => toggleBuilding(building.id)}
+                                  style={toggleStyle}
+                                  aria-expanded={buildingOpen}
                                 >
-                                  {t("add")}
+                                  {buildingOpen ? "▾" : "▸"} {building.name}
+                                  <span style={metaStyle}>/{building.slug}</span>
                                 </button>
-                              </form>
+                                <div style={actionsStyle}>
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => onRenameBuilding(building.id, building.name)}
+                                    style={ghostButtonStyle}
+                                  >
+                                    {t("rename")}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => onDeleteBuilding(building.id, building.name)}
+                                    style={dangerButtonStyle}
+                                  >
+                                    {t("delete")}
+                                  </button>
+                                </div>
+                              </div>
 
-                              <ul
-                                style={{
-                                  listStyle: "none",
-                                  padding: 0,
-                                  margin: 0,
-                                  display: "grid",
-                                  gap: "0.35rem",
-                                }}
-                              >
-                                {building.floors.map((floor) => (
-                                  <li key={floor.id} style={rowStyle}>
-                                    <span style={{ fontSize: "0.9rem" }}>
-                                      {floor.name}
-                                      <span style={metaStyle}>
-                                        /{floor.slug} · L{floor.level}
-                                      </span>
-                                    </span>
-                                    <div style={actionsStyle}>
-                                      <Link
-                                        to={`/admin/floors/${floor.id}`}
-                                        style={{
-                                          ...primaryButtonStyle,
-                                          textDecoration: "none",
-                                          display: "inline-block",
-                                          fontSize: "0.8rem",
-                                          padding: "0.3rem 0.6rem",
-                                        }}
-                                      >
-                                        {t("editMap")}
-                                      </Link>
-                                      <button
-                                        type="button"
-                                        disabled={busy}
-                                        onClick={() => onRenameFloor(floor.id, floor.name)}
-                                        style={ghostButtonStyle}
-                                      >
-                                        {t("rename")}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        disabled={busy}
-                                        onClick={() => onDeleteFloor(floor.id, floor.name)}
-                                        style={dangerButtonStyle}
-                                      >
-                                        {t("delete")}
-                                      </button>
-                                    </div>
-                                  </li>
-                                ))}
-                                {building.floors.length === 0 ? (
-                                  <li style={{ fontSize: "0.85rem", color: "#666" }}>{t("emptyFloors")}</li>
-                                ) : null}
-                              </ul>
-                            </div>
-                          ) : null}
-                        </li>
-                      );
-                    })}
-                    {campus.buildings.length === 0 ? (
-                      <li style={{ fontSize: "0.85rem", color: "#666" }}>{t("emptyBuildings")}</li>
-                    ) : null}
-                  </ul>
+                              {buildingOpen ? (
+                                <div style={{ marginTop: "0.6rem", paddingLeft: "0.35rem" }}>
+                                  <div style={sectionLabelStyle}>{t("floors")}</div>
+                                  {floorForm(building.id, (e) =>
+                                    onCreateFloor(e, building.id, {
+                                      buildingId: building.id,
+                                    }),
+                                  )}
+                                  <ul
+                                    style={{
+                                      listStyle: "none",
+                                      padding: 0,
+                                      margin: 0,
+                                      display: "grid",
+                                      gap: "0.35rem",
+                                    }}
+                                  >
+                                    {building.floors.map((floor) => floorRow(floor, true))}
+                                    {building.floors.length === 0 ? (
+                                      <li style={{ fontSize: "0.85rem", color: "#666" }}>
+                                        {t("emptyFloors")}
+                                      </li>
+                                    ) : null}
+                                  </ul>
+                                </div>
+                              ) : null}
+                            </li>
+                          );
+                        })}
+                        {campus.buildings.length === 0 ? (
+                          <li style={{ fontSize: "0.85rem", color: "#666" }}>
+                            {t("emptyBuildings")}
+                          </li>
+                        ) : null}
+                      </ul>
+                    </>
+                  ) : null}
                 </div>
               ) : null}
             </li>
@@ -440,6 +594,7 @@ const actionsStyle: CSSProperties = {
   display: "flex",
   gap: "0.35rem",
   flexWrap: "wrap",
+  alignItems: "center",
 };
 
 const inlineFormStyle: CSSProperties = {

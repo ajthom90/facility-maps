@@ -6,10 +6,13 @@ import { Breadcrumb } from "../components/Breadcrumb";
 import type { BuildingDetail } from "../types";
 
 export function BuildingPage() {
-  const { campusSlug = "", buildingSlug = "" } = useParams<{
+  const params = useParams<{
     campusSlug: string;
-    buildingSlug: string;
+    buildingSlug?: string;
+    segmentSlug?: string;
   }>();
+  const campusSlug = params.campusSlug ?? "";
+  const buildingSlug = params.buildingSlug ?? params.segmentSlug ?? "";
   const { t } = useTranslation();
   const [building, setBuilding] = useState<BuildingDetail | null>(null);
   const [campusName, setCampusName] = useState<string>(campusSlug);

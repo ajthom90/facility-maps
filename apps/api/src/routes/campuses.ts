@@ -1,8 +1,19 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import type { Db } from "../db/client.js";
 import { buildings, campuses, floors } from "../db/schema.js";
 import { buildFloorPayload } from "../lib/floor-payload.js";
+import { parseHierarchyMode } from "../lib/hierarchy-mode.js";
+
+function floorSummarySelect() {
+  return {
+    id: floors.id,
+    name: floors.name,
+    slug: floors.slug,
+    level: floors.level,
+    sortOrder: floors.sortOrder,
+  };
+}
 
 export function campusesRoutes(getDb: () => Db) {
   const app = new Hono();
@@ -14,16 +25,23 @@ export function campusesRoutes(getDb: () => Db) {
         name: campuses.name,
         slug: campuses.slug,
         sortOrder: campuses.sortOrder,
+        hierarchyMode: campuses.hierarchyMode,
       })
       .from(campuses)
       .orderBy(asc(campuses.sortOrder), asc(campuses.name));
 
-    return c.json({ campuses: rows });
+    return c.json({
+      campuses: rows.map((r) => ({
+        ...r,
+        hierarchyMode: parseHierarchyMode(r.hierarchyMode),
+      })),
+    });
   });
 
   app.get("/:slug", async (c) => {
     const slug = c.req.param("slug");
-    const [campus] = await getDb()
+    const db = getDb();
+    const [campus] = await db
       .select()
       .from(campuses)
       .where(eq(campuses.slug, slug))
@@ -33,23 +51,42 @@ export function campusesRoutes(getDb: () => Db) {
       return c.json({ error: "Campus not found" }, 404);
     }
 
-    const buildingRows = await getDb()
-      .select({
-        id: buildings.id,
-        name: buildings.name,
-        slug: buildings.slug,
-        sortOrder: buildings.sortOrder,
-      })
-      .from(buildings)
-      .where(eq(buildings.campusId, campus.id))
-      .orderBy(asc(buildings.sortOrder), asc(buildings.name));
-
-    return c.json({
+    const mode = parseHierarchyMode(campus.hierarchyMode);
+    const base = {
       id: campus.id,
       name: campus.name,
       slug: campus.slug,
       sortOrder: campus.sortOrder,
-      buildings: buildingRows,
+      hierarchyMode: mode,
+    };
+
+    if (mode === "full") {
+      const buildingRows = await db
+        .select({
+          id: buildings.id,
+          name: buildings.name,
+          slug: buildings.slug,
+          sortOrder: buildings.sortOrder,
+        })
+        .from(buildings)
+        .where(eq(buildings.campusId, campus.id))
+        .orderBy(asc(buildings.sortOrder), asc(buildings.name));
+
+      return c.json({ ...base, buildings: buildingRows, floors: [] as never[] });
+    }
+
+    // no_buildings | single_map — floors hang on campus
+    const floorRows = await db
+      .select(floorSummarySelect())
+      .from(floors)
+      .where(and(eq(floors.campusId, campus.id), isNull(floors.buildingId)))
+      .orderBy(asc(floors.sortOrder), asc(floors.level));
+
+    return c.json({
+      ...base,
+      buildings: [] as never[],
+      floors: floorRows,
+      mapFloorId: mode === "single_map" ? (floorRows[0]?.id ?? null) : null,
     });
   });
 
@@ -59,13 +96,16 @@ export function campusesRoutes(getDb: () => Db) {
     const db = getDb();
 
     const [campus] = await db
-      .select({ id: campuses.id })
+      .select({ id: campuses.id, hierarchyMode: campuses.hierarchyMode })
       .from(campuses)
       .where(eq(campuses.slug, campusSlug))
       .limit(1);
 
     if (!campus) {
       return c.json({ error: "Campus not found" }, 404);
+    }
+    if (parseHierarchyMode(campus.hierarchyMode) !== "full") {
+      return c.json({ error: "Campus does not use buildings" }, 404);
     }
 
     const [building] = await db
@@ -79,13 +119,7 @@ export function campusesRoutes(getDb: () => Db) {
     }
 
     const floorRows = await db
-      .select({
-        id: floors.id,
-        name: floors.name,
-        slug: floors.slug,
-        level: floors.level,
-        sortOrder: floors.sortOrder,
-      })
+      .select(floorSummarySelect())
       .from(floors)
       .where(eq(floors.buildingId, building.id))
       .orderBy(asc(floors.sortOrder), asc(floors.level));
@@ -99,6 +133,50 @@ export function campusesRoutes(getDb: () => Db) {
     });
   });
 
+  /** Campus-level floor (no_buildings / single_map). */
+  app.get("/:campusSlug/floors/:floorSlug", async (c) => {
+    const campusSlug = c.req.param("campusSlug");
+    const floorSlug = c.req.param("floorSlug");
+    const db = getDb();
+
+    const [campus] = await db
+      .select({ id: campuses.id, hierarchyMode: campuses.hierarchyMode })
+      .from(campuses)
+      .where(eq(campuses.slug, campusSlug))
+      .limit(1);
+
+    if (!campus) {
+      return c.json({ error: "Campus not found" }, 404);
+    }
+
+    const mode = parseHierarchyMode(campus.hierarchyMode);
+    if (mode === "full") {
+      return c.json({ error: "Use building floor path for full hierarchy campuses" }, 404);
+    }
+
+    const [floor] = await db
+      .select({ id: floors.id })
+      .from(floors)
+      .where(
+        and(
+          eq(floors.campusId, campus.id),
+          isNull(floors.buildingId),
+          eq(floors.slug, floorSlug),
+        ),
+      )
+      .limit(1);
+
+    if (!floor) {
+      return c.json({ error: "Floor not found" }, 404);
+    }
+
+    const payload = await buildFloorPayload(db, floor.id);
+    if (!payload) {
+      return c.json({ error: "Floor not found" }, 404);
+    }
+    return c.json(payload);
+  });
+
   app.get("/:campusSlug/buildings/:buildingSlug/floors/:floorSlug", async (c) => {
     const campusSlug = c.req.param("campusSlug");
     const buildingSlug = c.req.param("buildingSlug");
@@ -106,13 +184,16 @@ export function campusesRoutes(getDb: () => Db) {
     const db = getDb();
 
     const [campus] = await db
-      .select({ id: campuses.id })
+      .select({ id: campuses.id, hierarchyMode: campuses.hierarchyMode })
       .from(campuses)
       .where(eq(campuses.slug, campusSlug))
       .limit(1);
 
     if (!campus) {
       return c.json({ error: "Campus not found" }, 404);
+    }
+    if (parseHierarchyMode(campus.hierarchyMode) !== "full") {
+      return c.json({ error: "Campus does not use buildings" }, 404);
     }
 
     const [building] = await db

@@ -14,6 +14,7 @@ Container images: `ghcr.io/ajthom90/facility-maps:<version>` (see README).
 
 ### Added
 - `docker-compose.truenas.yml` — TrueNAS SCALE sample with all settings inlined (no `.env`)
+- **Per-campus hierarchy modes:** `full` (Campus→Building→Floor), `no_buildings` (Campus→Floor), `single_map` (one site map). Configurable in admin Structure.
 
 ## [0.2.0] — 2026-07-29
 

@@ -95,6 +95,7 @@ describe("admin features, users, and presets", () => {
     const [floor] = await db
       .insert(floors)
       .values({
+        campusId: campus.id,
         buildingId: building.id,
         name: "Features Floor",
         slug: "features-floor",

@@ -3,6 +3,8 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { buildings, campuses } from "../../db/schema.js";
+import { isUniqueViolation } from "../../lib/db-errors.js";
+import { parseHierarchyMode } from "../../lib/hierarchy-mode.js";
 import { resolveSlug } from "../../lib/slug.js";
 import {
   requireAdmin,
@@ -47,12 +49,18 @@ export function adminBuildingsRoutes(getDb: () => Db) {
     }
 
     const [campus] = await getDb()
-      .select({ id: campuses.id })
+      .select()
       .from(campuses)
       .where(eq(campuses.id, campusId))
       .limit(1);
     if (!campus) {
       return c.json({ error: "Campus not found" }, 404);
+    }
+    if (parseHierarchyMode(campus.hierarchyMode) !== "full") {
+      return c.json(
+        { error: "Buildings are only allowed when campus hierarchy mode is full" },
+        400,
+      );
     }
 
     try {
@@ -110,12 +118,18 @@ export function adminBuildingsRoutes(getDb: () => Db) {
 
     if (updates.campusId) {
       const [campus] = await getDb()
-        .select({ id: campuses.id })
+        .select()
         .from(campuses)
         .where(eq(campuses.id, updates.campusId))
         .limit(1);
       if (!campus) {
         return c.json({ error: "Campus not found" }, 404);
+      }
+      if (parseHierarchyMode(campus.hierarchyMode) !== "full") {
+        return c.json(
+          { error: "Target campus does not allow buildings" },
+          400,
+        );
       }
     }
 
@@ -147,13 +161,4 @@ export function adminBuildingsRoutes(getDb: () => Db) {
   });
 
   return app;
-}
-
-function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: string }).code === "23505"
-  );
 }

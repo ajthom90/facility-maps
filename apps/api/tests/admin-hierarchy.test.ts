@@ -48,6 +48,8 @@ describe("admin hierarchy CRUD + plan upload", () => {
   let createdBuildingIds: string[] = [];
   let createdFloorIds: string[] = [];
   let createdCampusIds: string[] = [];
+  /** Floor that received a plan upload (for upsert test). */
+  let plannedFloorId: string | null = null;
 
   beforeAll(async () => {
     runMigrations(SQLITE_PATH);
@@ -108,6 +110,76 @@ describe("admin hierarchy CRUD + plan upload", () => {
     if (uploadDir) {
       await fs.rm(uploadDir, { recursive: true, force: true });
     }
+  });
+
+  it("creates single_map campus with auto site-map floor", async () => {
+    const res = await app.request("/api/admin/campuses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({
+        name: "Single Site",
+        hierarchyMode: "single_map",
+      }),
+    });
+    expect(res.status).toBe(201);
+    const campus = await res.json();
+    expect(campus.hierarchyMode).toBe("single_map");
+    createdCampusIds.push(campus.id);
+
+    const publicRes = await app.request(`/api/campuses/${campus.slug}`);
+    expect(publicRes.status).toBe(200);
+    const body = await publicRes.json();
+    expect(body.mapFloorId).toBeTruthy();
+    expect(body.floors).toHaveLength(1);
+    expect(body.floors[0].slug).toBe("map");
+  });
+
+  it("creates no_buildings campus and campus-level floor", async () => {
+    const campusRes = await app.request("/api/admin/campuses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({
+        name: "Flat Campus",
+        hierarchyMode: "no_buildings",
+      }),
+    });
+    expect(campusRes.status).toBe(201);
+    const campus = await campusRes.json();
+    expect(campus.hierarchyMode).toBe("no_buildings");
+    createdCampusIds.push(campus.id);
+
+    const floorRes = await app.request("/api/admin/floors", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({
+        campusId: campus.id,
+        name: "Level 1",
+      }),
+    });
+    expect(floorRes.status).toBe(201);
+    const floor = await floorRes.json();
+    expect(floor.campusId).toBe(campus.id);
+    expect(floor.buildingId).toBeNull();
+    createdFloorIds.push(floor.id);
+
+    const buildingRes = await app.request("/api/admin/buildings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({ campusId: campus.id, name: "Should Fail" }),
+    });
+    expect(buildingRes.status).toBe(400);
   });
 
   it("rejects unauthenticated building create with 401", async () => {
@@ -184,6 +256,7 @@ describe("admin hierarchy CRUD + plan upload", () => {
       level: 1,
     });
     createdFloorIds.push(floor.id);
+    plannedFloorId = floor.id;
 
     const form = new FormData();
     form.append(
@@ -228,7 +301,7 @@ describe("admin hierarchy CRUD + plan upload", () => {
   });
 
   it("upserts plan on second upload", async () => {
-    const floorId = createdFloorIds[0];
+    const floorId = plannedFloorId;
     expect(floorId).toBeTruthy();
 
     const [before] = await db

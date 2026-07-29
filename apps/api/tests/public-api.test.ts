@@ -63,6 +63,7 @@ describe("public APIs", () => {
     const [floor] = await db
       .insert(floors)
       .values({
+        campusId: campus.id,
         buildingId: building.id,
         name: "Floor 1",
         slug: "floor-1",
@@ -109,6 +110,7 @@ describe("public APIs", () => {
       name: expect.any(String),
       slug: expect.any(String),
       sortOrder: expect.any(Number),
+      hierarchyMode: expect.stringMatching(/^(full|no_buildings|single_map)$/),
     });
   });
 
@@ -123,6 +125,7 @@ describe("public APIs", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.slug).toBe(campusSlug);
+    expect(body.hierarchyMode).toBe("full");
     expect(body.sortOrder).toEqual(expect.any(Number));
     expect(Array.isArray(body.buildings)).toBe(true);
     expect(body.buildings.some((b: { slug: string }) => b.slug === buildingSlug)).toBe(true);
@@ -244,5 +247,72 @@ describe("public APIs", () => {
   it("rejects path traversal on uploads", async () => {
     const res = await app.request("/api/uploads/../../etc/passwd");
     expect(res.status).toBe(404);
+  });
+
+  it("supports no_buildings campus floors at /campuses/:slug/floors/:floorSlug", async () => {
+    const [nbCampus] = await db
+      .insert(campuses)
+      .values({
+        name: "No Buildings Site",
+        slug: "no-buildings-site",
+        sortOrder: 50,
+        hierarchyMode: "no_buildings",
+      })
+      .returning();
+
+    const [nbFloor] = await db
+      .insert(floors)
+      .values({
+        campusId: nbCampus.id,
+        buildingId: null,
+        name: "Ground",
+        slug: "ground",
+        level: 0,
+        sortOrder: 0,
+      })
+      .returning();
+
+    const campusRes = await app.request(`/api/campuses/${nbCampus.slug}`);
+    expect(campusRes.status).toBe(200);
+    const campusBody = await campusRes.json();
+    expect(campusBody.hierarchyMode).toBe("no_buildings");
+    expect(campusBody.buildings).toEqual([]);
+    expect(campusBody.floors.some((f: { slug: string }) => f.slug === "ground")).toBe(true);
+
+    const floorRes = await app.request(
+      `/api/campuses/${nbCampus.slug}/floors/${nbFloor.slug}`,
+    );
+    expect(floorRes.status).toBe(200);
+    expect((await floorRes.json()).id).toBe(nbFloor.id);
+  });
+
+  it("supports single_map campus with mapFloorId", async () => {
+    const [smCampus] = await db
+      .insert(campuses)
+      .values({
+        name: "Single Map Site",
+        slug: "single-map-site",
+        sortOrder: 51,
+        hierarchyMode: "single_map",
+      })
+      .returning();
+
+    const [smFloor] = await db
+      .insert(floors)
+      .values({
+        campusId: smCampus.id,
+        buildingId: null,
+        name: "Site map",
+        slug: "map",
+        level: 0,
+        sortOrder: 0,
+      })
+      .returning();
+
+    const res = await app.request(`/api/campuses/${smCampus.slug}`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.hierarchyMode).toBe("single_map");
+    expect(body.mapFloorId).toBe(smFloor.id);
   });
 });

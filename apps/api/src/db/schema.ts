@@ -1,8 +1,10 @@
+import { sql } from "drizzle-orm";
 import {
   integer,
   sqliteTable,
   text,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
 /** Application-level UUID (text). Generated in JS when omitted on insert. */
@@ -23,6 +25,11 @@ export const campuses = sqliteTable("campuses", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   sortOrder: integer("sort_order").notNull().default(0),
+  /**
+   * full | no_buildings | single_map
+   * Controls public navigation and where floors attach.
+   */
+  hierarchyMode: text("hierarchy_mode").notNull().default("full"),
 });
 
 export const buildings = sqliteTable(
@@ -36,22 +43,33 @@ export const buildings = sqliteTable(
     slug: text("slug").notNull(),
     sortOrder: integer("sort_order").notNull().default(0),
   },
-  (t) => [unique("buildings_campus_id_slug_unique").on(t.campusId, t.slug)]
+  (t) => [unique("buildings_campus_id_slug_unique").on(t.campusId, t.slug)],
 );
 
 export const floors = sqliteTable(
   "floors",
   {
     id: idColumn(),
-    buildingId: text("building_id")
+    campusId: text("campus_id")
       .notNull()
-      .references(() => buildings.id, { onDelete: "cascade" }),
+      .references(() => campuses.id, { onDelete: "cascade" }),
+    /** Set in full mode; null for no_buildings / single_map. */
+    buildingId: text("building_id").references(() => buildings.id, {
+      onDelete: "cascade",
+    }),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     level: integer("level").notNull().default(0),
     sortOrder: integer("sort_order").notNull().default(0),
   },
-  (t) => [unique("floors_building_id_slug_unique").on(t.buildingId, t.slug)]
+  (t) => [
+    uniqueIndex("floors_building_id_slug_unique")
+      .on(t.buildingId, t.slug)
+      .where(sql`${t.buildingId} is not null`),
+    uniqueIndex("floors_campus_id_slug_unique")
+      .on(t.campusId, t.slug)
+      .where(sql`${t.buildingId} is null`),
+  ],
 );
 
 export const floorPlans = sqliteTable("floor_plans", {

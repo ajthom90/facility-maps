@@ -2,7 +2,8 @@ CREATE TABLE `campuses` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`slug` text NOT NULL,
-	`sort_order` integer DEFAULT 0 NOT NULL
+	`sort_order` integer DEFAULT 0 NOT NULL,
+	`hierarchy_mode` text DEFAULT 'full' NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `campuses_slug_unique` ON `campuses` (`slug`);
@@ -20,15 +21,19 @@ CREATE UNIQUE INDEX `buildings_campus_id_slug_unique` ON `buildings` (`campus_id
 --> statement-breakpoint
 CREATE TABLE `floors` (
 	`id` text PRIMARY KEY NOT NULL,
-	`building_id` text NOT NULL,
+	`campus_id` text NOT NULL,
+	`building_id` text,
 	`name` text NOT NULL,
 	`slug` text NOT NULL,
 	`level` integer DEFAULT 0 NOT NULL,
 	`sort_order` integer DEFAULT 0 NOT NULL,
+	FOREIGN KEY (`campus_id`) REFERENCES `campuses`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`building_id`) REFERENCES `buildings`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `floors_building_id_slug_unique` ON `floors` (`building_id`,`slug`);
+CREATE UNIQUE INDEX `floors_building_id_slug_unique` ON `floors` (`building_id`,`slug`) WHERE `building_id` is not null;
+--> statement-breakpoint
+CREATE UNIQUE INDEX `floors_campus_id_slug_unique` ON `floors` (`campus_id`,`slug`) WHERE `building_id` is null;
 --> statement-breakpoint
 CREATE TABLE `floor_plans` (
 	`id` text PRIMARY KEY NOT NULL,

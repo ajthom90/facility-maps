@@ -1,9 +1,9 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
-import { BuildingPage } from "./pages/BuildingPage";
-import { CampusPage } from "./pages/CampusPage";
 import { FloorMapPage } from "./pages/FloorMapPage";
 import { HomePage } from "./pages/HomePage";
+import { CampusPage } from "./pages/CampusPage";
+import { MiddleSegmentPage } from "./pages/MiddleSegmentPage";
 import { AdminLayout } from "./pages/admin/AdminLayout";
 import { FloorEditorPage } from "./pages/admin/FloorEditorPage";
 import { LoginPage } from "./pages/admin/LoginPage";
@@ -27,7 +27,7 @@ export function App() {
         <Route element={<Layout />}>
           <Route index element={<HomePage />} />
           <Route path=":campusSlug" element={<CampusPage />} />
-          <Route path=":campusSlug/:buildingSlug" element={<BuildingPage />} />
+          <Route path=":campusSlug/:segmentSlug" element={<MiddleSegmentPage />} />
           <Route
             path=":campusSlug/:buildingSlug/:floorSlug"
             element={<FloorMapPage />}
