@@ -136,6 +136,26 @@ export function FloorEditorPage() {
     setSelected((prev) => (prev?.id === id ? null : prev));
   }
 
+  /** Update only media so concurrent label/notes patches are not clobbered. */
+  function updateFeatureMedia(
+    featureId: string,
+    update: (media: FeatureMedia[]) => FeatureMedia[],
+  ) {
+    setFloor((prev) =>
+      prev
+        ? {
+            ...prev,
+            features: prev.features.map((f) =>
+              f.id === featureId ? { ...f, media: update(f.media ?? []) } : f,
+            ),
+          }
+        : prev,
+    );
+    setSelected((prev) =>
+      prev?.id === featureId ? { ...prev, media: update(prev.media ?? []) } : prev,
+    );
+  }
+
   async function onUploadPlan(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -306,10 +326,11 @@ export function FloorEditorPage() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file || !selected) return;
+    const featureId = selected.id;
     setSaving(true);
     setError(null);
     try {
-      const uploaded = await api.uploadFeatureMedia(selected.id, file);
+      const uploaded = await api.uploadFeatureMedia(featureId, file);
       const item: FeatureMedia = {
         id: uploaded.id,
         url: uploaded.url,
@@ -317,10 +338,7 @@ export function FloorEditorPage() {
         sizeBytes: uploaded.sizeBytes,
         createdAt: uploaded.createdAt,
       };
-      replaceFeature({
-        ...selected,
-        media: [...(selected.media ?? []), item],
-      });
+      updateFeatureMedia(featureId, (m) => [...m, item]);
       flashSaved();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("errorLoad"));
@@ -332,14 +350,12 @@ export function FloorEditorPage() {
   async function onDeleteMedia(mediaId: string) {
     if (!selected) return;
     if (!window.confirm(`${t("delete")}?`)) return;
+    const featureId = selected.id;
     setSaving(true);
     setError(null);
     try {
-      await api.deleteFeatureMedia(selected.id, mediaId);
-      replaceFeature({
-        ...selected,
-        media: (selected.media ?? []).filter((m) => m.id !== mediaId),
-      });
+      await api.deleteFeatureMedia(featureId, mediaId);
+      updateFeatureMedia(featureId, (m) => m.filter((x) => x.id !== mediaId));
       flashSaved();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("errorLoad"));
