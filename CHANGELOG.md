@@ -12,6 +12,16 @@ Container images: `ghcr.io/ajthom90/facility-maps:<version>` (see README).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-07-30
+
+### Added
+- **Photo/video media on map features:** attach images (PNG/JPEG/WebP) and videos (MP4/WebM/MOV) to any feature in the floor editor; the public feature popup shows them inline. New `feature_media` table is created automatically on upgrade (startup schema compat), stored under the uploads volume.
+- **Rectangle tool** in the floor editor: click two opposite corners to draw an axis-aligned rectangle (stored as ordinary polygon geometry, so rendering and editing are unchanged).
+- **`smoke_detector` feature type** (with map color and label), included in the `fire_response` layer preset — applied to existing deployments by the startup preset seed refresh.
+
+### Fixed
+- Floor editor: switching tools no longer discards an in-progress draft when re-clicking the already-active tool, and media uploads no longer clobber concurrent label/notes edits in the edit panel.
+
 ## [0.3.1] — 2026-07-29
 
 ### Fixed
