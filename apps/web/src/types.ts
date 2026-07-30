@@ -60,6 +60,7 @@ export const FEATURE_TYPES = [
   "flammable_storage",
   "high_pressure",
   "co_detector",
+  "smoke_detector",
   "confined_space",
   "sds_station",
 ] as const;

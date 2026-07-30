@@ -41,6 +41,7 @@
     "flammable_storage": "Flammable storage",
     "high_pressure": "High pressure area",
     "co_detector": "CO detector",
+    "smoke_detector": "Smoke detector",
     "confined_space": "Confined space",
     "sds_station": "SDS station"
   },

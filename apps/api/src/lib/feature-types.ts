@@ -27,6 +27,7 @@ export const FEATURE_TYPES = [
   "flammable_storage",
   "high_pressure",
   "co_detector",
+  "smoke_detector",
   "confined_space",
   "sds_station",
 ] as const;
@@ -62,6 +63,7 @@ export const PRESET_SEEDS: {
       "gas_shutoff",
       "flammable_storage",
       "hazard",
+      "smoke_detector",
     ],
   },
   {

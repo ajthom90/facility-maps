@@ -21,6 +21,7 @@ export const FEATURE_TYPE_COLORS: Record<string, string> = {
   flammable_storage: "#f97316",
   high_pressure: "#c026d3",
   co_detector: "#ca8a04",
+  smoke_detector: "#57534e",
   confined_space: "#9a3412",
   sds_station: "#6d28d9",
 };

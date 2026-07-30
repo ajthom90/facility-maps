@@ -26,11 +26,12 @@ describe("feature type catalog", () => {
         "flammable_storage",
         "high_pressure",
         "co_detector",
+        "smoke_detector",
         "confined_space",
         "sds_station",
       ])
     );
-    expect(FEATURE_TYPES).toHaveLength(23);
+    expect(FEATURE_TYPES).toHaveLength(24);
     // No duplicates
     expect(new Set(FEATURE_TYPES).size).toBe(FEATURE_TYPES.length);
   });
