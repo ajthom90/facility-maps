@@ -11,6 +11,7 @@ import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../../api/client";
 import { MapCanvas } from "../../components/MapCanvas";
+import { rectanglePoints } from "../../lib/geometry";
 import {
   FEATURE_TYPES,
   type FeatureType,
@@ -18,7 +19,7 @@ import {
   type MapFeature,
 } from "../../types";
 
-type Tool = "select" | "pin" | "polygon";
+type Tool = "select" | "pin" | "rect" | "polygon";
 
 export function FloorEditorPage() {
   const { floorId = "" } = useParams<{ floorId: string }>();
@@ -178,6 +179,33 @@ export function FloorEditorPage() {
         return;
       }
 
+      if (tool === "rect") {
+        const current = draftPointsRef.current;
+        if (current.length === 0) {
+          setDraftPointsSynced([[coords.x, coords.y]]);
+          return;
+        }
+        const points = rectanglePoints(current[0], [coords.x, coords.y]);
+        if (!points) return;
+        setSaving(true);
+        setError(null);
+        try {
+          const created = await api.createFeature({
+            floorId,
+            type: featureType,
+            geometry: { type: "polygon", points },
+          });
+          addFeature(created);
+          setDraftPointsSynced([]);
+          flashSaved();
+        } catch (err: unknown) {
+          setError(err instanceof Error ? err.message : t("errorLoad"));
+        } finally {
+          setSaving(false);
+        }
+        return;
+      }
+
       if (tool === "polygon") {
         const next: [number, number][] = [
           ...draftPointsRef.current,
@@ -187,7 +215,7 @@ export function FloorEditorPage() {
         setDraftPoints(next);
       }
     },
-    [floor, floorId, tool, featureType, flashSaved, t],
+    [floor, floorId, tool, featureType, flashSaved, t, setDraftPointsSynced],
   );
 
   const completePolygon = useCallback(async () => {
@@ -336,13 +364,13 @@ export function FloorEditorPage() {
         }}
       >
         <div style={{ display: "flex", gap: 4 }} role="group" aria-label="Tools">
-          {(["select", "pin", "polygon"] as Tool[]).map((value) => (
+          {(["select", "pin", "rect", "polygon"] as Tool[]).map((value) => (
             <button
               key={value}
               type="button"
               onClick={() => {
+                if (value !== tool) setDraftPointsSynced([]);
                 setTool(value);
-                if (value !== "polygon") setDraftPointsSynced([]);
               }}
               style={{
                 ...toolButtonStyle,
@@ -379,6 +407,15 @@ export function FloorEditorPage() {
             disabled={uploading}
           />
         </label>
+
+        {tool === "rect" && draftPoints.length === 1 ? (
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <span style={{ fontSize: "0.85rem", color: "#555" }}>{t("rectHint")}</span>
+            <button type="button" onClick={cancelPolygon} style={ghostButtonStyle}>
+              {t("cancel")}
+            </button>
+          </div>
+        ) : null}
 
         {tool === "polygon" ? (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>

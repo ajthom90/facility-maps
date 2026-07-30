@@ -90,9 +90,11 @@
   "complete": "Complete",
   "cancel": "Cancel",
   "vertices": "vertices",
+  "rectHint": "Click the opposite corner",
   "tools": {
     "select": "Select",
     "pin": "Pin",
+    "rect": "Rectangle",
     "polygon": "Polygon"
   }
 }
