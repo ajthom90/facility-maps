@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { MapFeature } from "../types";
 import { colorForType } from "../lib/featureStyle";
+import { mediaKind } from "../lib/media";
 
 export type FeaturePopupProps = {
   feature: MapFeature | null;
@@ -13,6 +14,7 @@ export function FeaturePopup({ feature, onClose }: FeaturePopupProps) {
   if (!feature) return null;
 
   const color = colorForType(feature.type);
+  const media = feature.media ?? [];
 
   return (
     <div
@@ -32,6 +34,8 @@ export function FeaturePopup({ feature, onClose }: FeaturePopupProps) {
         padding: "0.85rem 1rem",
         maxWidth: 420,
         margin: "0 auto",
+        maxHeight: "min(60vh, 480px)",
+        overflowY: "auto",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
@@ -75,6 +79,28 @@ export function FeaturePopup({ feature, onClose }: FeaturePopupProps) {
           <span style={{ color: "#64748b", fontSize: "0.8rem" }}>{t("notes")}: </span>
           {feature.notes}
         </p>
+      ) : null}
+      {media.length > 0 ? (
+        <div style={{ display: "grid", gap: "0.5rem", marginTop: "0.65rem" }}>
+          {media.map((item) =>
+            mediaKind(item.mimeType) === "video" ? (
+              <video
+                key={item.id}
+                src={item.url}
+                controls
+                preload="metadata"
+                style={{ maxWidth: "100%", borderRadius: 8 }}
+              />
+            ) : (
+              <img
+                key={item.id}
+                src={item.url}
+                alt=""
+                style={{ maxWidth: "100%", borderRadius: 8 }}
+              />
+            ),
+          )}
+        </div>
       ) : null}
     </div>
   );

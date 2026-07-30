@@ -46,6 +46,9 @@ export function ensureSchemaCompat(sqlite: SqliteDatabase): void {
     );
   }
 
+  // Photo/video attachments on map features (post-0.3 deploy upgrade).
+  ensureFeatureMediaTable(sqlite);
+
   if (!tableExists(sqlite, "floors")) {
     return;
   }
@@ -120,5 +123,33 @@ function ensureFloorIndexes(sqlite: SqliteDatabase): void {
   sqlite.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS floors_campus_id_slug_unique
       ON floors (campus_id, slug) WHERE building_id IS NULL;
+  `);
+}
+
+/**
+ * Create feature_media when features exists but the media table does not.
+ * Existing DBs never re-run 0000_init — this is how they get the table.
+ */
+function ensureFeatureMediaTable(sqlite: SqliteDatabase): void {
+  if (!tableExists(sqlite, "features")) {
+    return;
+  }
+  if (tableExists(sqlite, "feature_media")) {
+    return;
+  }
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS feature_media (
+      id text PRIMARY KEY NOT NULL,
+      feature_id text NOT NULL,
+      file_path text NOT NULL,
+      mime_type text NOT NULL,
+      size_bytes integer NOT NULL,
+      created_at integer NOT NULL,
+      FOREIGN KEY (feature_id) REFERENCES features(id) ON UPDATE no action ON DELETE cascade
+    );
+  `);
+  sqlite.exec(`
+    CREATE INDEX IF NOT EXISTS feature_media_feature_id_idx
+      ON feature_media (feature_id);
   `);
 }

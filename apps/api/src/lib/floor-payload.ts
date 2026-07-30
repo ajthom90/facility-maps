@@ -1,6 +1,6 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { features, floorPlans, floors } from "../db/schema.js";
+import { featureMedia, features, floorPlans, floors } from "../db/schema.js";
 
 /** Encode each path segment for `/api/uploads/...` URLs. */
 export function planFileUrl(filePath: string): string {
@@ -11,6 +11,14 @@ export function planFileUrl(filePath: string): string {
     .join("/");
   return `/api/uploads/${encoded}`;
 }
+
+export type FeatureMediaPayload = {
+  id: string;
+  url: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: Date;
+};
 
 export type FloorPayload = {
   id: string;
@@ -34,6 +42,7 @@ export type FloorPayload = {
     notes: string | null;
     createdAt: Date;
     updatedAt: Date;
+    media: FeatureMediaPayload[];
   }>;
 };
 
@@ -64,6 +73,39 @@ export async function buildFloorPayload(
     .where(eq(features.floorId, floor.id))
     .orderBy(asc(features.createdAt));
 
+  const mediaByFeature = new Map<string, FeatureMediaPayload[]>();
+  if (featureRows.length > 0) {
+    const featureIds = featureRows.map((f) => f.id);
+    const mediaRows = await db
+      .select({
+        id: featureMedia.id,
+        featureId: featureMedia.featureId,
+        filePath: featureMedia.filePath,
+        mimeType: featureMedia.mimeType,
+        sizeBytes: featureMedia.sizeBytes,
+        createdAt: featureMedia.createdAt,
+      })
+      .from(featureMedia)
+      .where(inArray(featureMedia.featureId, featureIds))
+      .orderBy(asc(featureMedia.createdAt), asc(featureMedia.id));
+
+    for (const row of mediaRows) {
+      const item: FeatureMediaPayload = {
+        id: row.id,
+        url: planFileUrl(row.filePath),
+        mimeType: row.mimeType,
+        sizeBytes: row.sizeBytes,
+        createdAt: row.createdAt,
+      };
+      const list = mediaByFeature.get(row.featureId);
+      if (list) {
+        list.push(item);
+      } else {
+        mediaByFeature.set(row.featureId, [item]);
+      }
+    }
+  }
+
   return {
     id: floor.id,
     name: floor.name,
@@ -80,6 +122,9 @@ export async function buildFloorPayload(
           uploadedAt: plan.uploadedAt,
         }
       : null,
-    features: featureRows,
+    features: featureRows.map((f) => ({
+      ...f,
+      media: mediaByFeature.get(f.id) ?? [],
+    })),
   };
 }

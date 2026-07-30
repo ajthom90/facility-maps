@@ -12,8 +12,10 @@ import { useTranslation } from "react-i18next";
 import { api } from "../../api/client";
 import { MapCanvas } from "../../components/MapCanvas";
 import { rectanglePoints } from "../../lib/geometry";
+import { mediaKind } from "../../lib/media";
 import {
   FEATURE_TYPES,
+  type FeatureMedia,
   type FeatureType,
   type FloorDetail,
   type MapFeature,
@@ -300,6 +302,52 @@ export function FloorEditorPage() {
     }
   }
 
+  async function onUploadMedia(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !selected) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const uploaded = await api.uploadFeatureMedia(selected.id, file);
+      const item: FeatureMedia = {
+        id: uploaded.id,
+        url: uploaded.url,
+        mimeType: uploaded.mimeType,
+        sizeBytes: uploaded.sizeBytes,
+        createdAt: uploaded.createdAt,
+      };
+      replaceFeature({
+        ...selected,
+        media: [...(selected.media ?? []), item],
+      });
+      flashSaved();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t("errorLoad"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onDeleteMedia(mediaId: string) {
+    if (!selected) return;
+    if (!window.confirm(`${t("delete")}?`)) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await api.deleteFeatureMedia(selected.id, mediaId);
+      replaceFeature({
+        ...selected,
+        media: (selected.media ?? []).filter((m) => m.id !== mediaId),
+      });
+      flashSaved();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t("errorLoad"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function onSelectFeature(feature: MapFeature | null) {
     if (tool !== "select" && feature) {
       // Selecting existing features is always allowed to open the edit panel
@@ -524,6 +572,99 @@ export function FloorEditorPage() {
                     style={{ ...inputStyle, resize: "vertical" }}
                   />
                 </label>
+                <div style={fieldStyle}>
+                  <span>{t("media")}</span>
+                  {(selected.media ?? []).length === 0 ? (
+                    <p style={{ margin: 0, fontSize: "0.85rem", color: "#666" }}>
+                      {t("mediaEmpty")}
+                    </p>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 8,
+                      }}
+                    >
+                      {(selected.media ?? []).map((item) => (
+                        <div
+                          key={item.id}
+                          style={{
+                            position: "relative",
+                            width: 64,
+                            height: 64,
+                            borderRadius: 6,
+                            overflow: "hidden",
+                            border: "1px solid #e2e2e5",
+                            background: "#f4f4f5",
+                          }}
+                        >
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ display: "block", width: "100%", height: "100%" }}
+                          >
+                            {mediaKind(item.mimeType) === "video" ? (
+                              <video
+                                src={item.url}
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                  display: "block",
+                                }}
+                              />
+                            ) : (
+                              <img
+                                src={item.url}
+                                alt=""
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                  display: "block",
+                                }}
+                              />
+                            )}
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => void onDeleteMedia(item.id)}
+                            aria-label={t("delete")}
+                            disabled={saving}
+                            style={{
+                              position: "absolute",
+                              top: 2,
+                              right: 2,
+                              width: 18,
+                              height: 18,
+                              borderRadius: 999,
+                              border: "none",
+                              background: "rgba(0,0,0,0.55)",
+                              color: "#fff",
+                              fontSize: 12,
+                              lineHeight: "18px",
+                              padding: 0,
+                              cursor: "pointer",
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <label style={{ display: "grid", gap: 4, fontSize: "0.85rem" }}>
+                    <span>{t("addMedia")}</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime"
+                      onChange={(e) => void onUploadMedia(e)}
+                      disabled={saving}
+                    />
+                  </label>
+                </div>
                 <label style={fieldStyle}>
                   <span>{t("featureType")}</span>
                   <select

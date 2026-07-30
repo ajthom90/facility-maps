@@ -10,6 +10,9 @@ const MIME_BY_EXT: Record<string, string> = {
   ".webp": "image/webp",
   ".svg": "image/svg+xml",
   ".pdf": "application/pdf",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
 };
 
 function contentTypeFor(filePath: string): string {

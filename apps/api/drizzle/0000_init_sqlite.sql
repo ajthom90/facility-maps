@@ -60,6 +60,18 @@ CREATE TABLE `features` (
 	FOREIGN KEY (`floor_id`) REFERENCES `floors`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE TABLE `feature_media` (
+	`id` text PRIMARY KEY NOT NULL,
+	`feature_id` text NOT NULL,
+	`file_path` text NOT NULL,
+	`mime_type` text NOT NULL,
+	`size_bytes` integer NOT NULL,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`feature_id`) REFERENCES `features`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `feature_media_feature_id_idx` ON `feature_media` (`feature_id`);
+--> statement-breakpoint
 CREATE TABLE `admin_users` (
 	`id` text PRIMARY KEY NOT NULL,
 	`username` text NOT NULL,

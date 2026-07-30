@@ -104,6 +104,18 @@ export const features = sqliteTable("features", {
     .$onUpdateFn(() => new Date()),
 });
 
+export const featureMedia = sqliteTable("feature_media", {
+  id: idColumn(),
+  featureId: text("feature_id")
+    .notNull()
+    .references(() => features.id, { onDelete: "cascade" }),
+  /** Relative path with forward slashes, like floor_plans.file_path. */
+  filePath: text("file_path").notNull(),
+  mimeType: text("mime_type").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  createdAt: createdAtColumn(),
+});
+
 export const adminUsers = sqliteTable("admin_users", {
   id: idColumn(),
   username: text("username").notNull().unique(),

@@ -7,6 +7,7 @@ import { adminBuildingsRoutes } from "./routes/admin/buildings.js";
 import { adminCampusesRoutes } from "./routes/admin/campuses.js";
 import { adminFeaturesRoutes } from "./routes/admin/features.js";
 import { adminFloorsRoutes } from "./routes/admin/floors.js";
+import { adminFeatureMediaRoutes } from "./routes/admin/media.js";
 import { adminPlansRoutes } from "./routes/admin/plans.js";
 import { adminPresetsRoutes } from "./routes/admin/presets.js";
 import { adminUsersRoutes } from "./routes/admin/users.js";
@@ -49,6 +50,7 @@ export function createApp(options: CreateAppOptions = {}) {
   app.route("/api/admin/floors", adminFloorsRoutes(resolveDb));
   app.route("/api/admin/floors", adminPlansRoutes(resolveDb, uploadDir));
   app.route("/api/admin/features", adminFeaturesRoutes(resolveDb));
+  app.route("/api/admin/features", adminFeatureMediaRoutes(resolveDb, uploadDir));
   app.route("/api/admin/users", adminUsersRoutes(resolveDb));
   app.route("/api/admin/presets", adminPresetsRoutes(resolveDb));
 

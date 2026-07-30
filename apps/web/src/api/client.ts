@@ -3,6 +3,7 @@ import type {
   CampusDetail,
   CampusesResponse,
   FeatureGeometry,
+  FeatureMedia,
   FeatureType,
   FloorDetail,
   FloorPlan,
@@ -302,6 +303,33 @@ export const api = {
     return requestJson(`/api/admin/features/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
+  },
+
+  async uploadFeatureMedia(
+    featureId: string,
+    file: File,
+  ): Promise<FeatureMedia & { featureId: string }> {
+    const form = new FormData();
+    form.append("file", file);
+    return requestJson(
+      `/api/admin/features/${encodeURIComponent(featureId)}/media`,
+      {
+        method: "POST",
+        body: form,
+      },
+    );
+  },
+
+  deleteFeatureMedia(
+    featureId: string,
+    mediaId: string,
+  ): Promise<{ ok: boolean; id: string }> {
+    return requestJson(
+      `/api/admin/features/${encodeURIComponent(featureId)}/media/${encodeURIComponent(mediaId)}`,
+      {
+        method: "DELETE",
+      },
+    );
   },
 
   // --- Admin users ---

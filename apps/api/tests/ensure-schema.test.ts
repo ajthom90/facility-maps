@@ -163,4 +163,92 @@ describe("ensureSchemaCompat", () => {
     const body = await res.json();
     expect(body.campuses.length).toBeGreaterThanOrEqual(2);
   });
+
+  it("adds feature_media table when missing on an otherwise current schema", () => {
+    const dbPath = tempSqlite("no-feature-media");
+    // Modern flexible floors + features, but no feature_media (pre-media deploy).
+    const sqlite = new Database(dbPath);
+    sqlite.pragma("foreign_keys = ON");
+    sqlite.exec(`
+      CREATE TABLE campuses (
+        id text PRIMARY KEY NOT NULL,
+        name text NOT NULL,
+        slug text NOT NULL,
+        sort_order integer DEFAULT 0 NOT NULL,
+        hierarchy_mode text DEFAULT 'full' NOT NULL
+      );
+      CREATE UNIQUE INDEX campuses_slug_unique ON campuses (slug);
+
+      CREATE TABLE buildings (
+        id text PRIMARY KEY NOT NULL,
+        campus_id text NOT NULL,
+        name text NOT NULL,
+        slug text NOT NULL,
+        sort_order integer DEFAULT 0 NOT NULL,
+        FOREIGN KEY (campus_id) REFERENCES campuses(id) ON DELETE cascade
+      );
+
+      CREATE TABLE floors (
+        id text PRIMARY KEY NOT NULL,
+        campus_id text NOT NULL,
+        building_id text,
+        name text NOT NULL,
+        slug text NOT NULL,
+        level integer DEFAULT 0 NOT NULL,
+        sort_order integer DEFAULT 0 NOT NULL,
+        FOREIGN KEY (campus_id) REFERENCES campuses(id) ON DELETE cascade,
+        FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE cascade
+      );
+
+      CREATE TABLE features (
+        id text PRIMARY KEY NOT NULL,
+        floor_id text NOT NULL,
+        type text NOT NULL,
+        geometry text NOT NULL,
+        label text,
+        notes text,
+        created_at integer NOT NULL,
+        updated_at integer NOT NULL,
+        FOREIGN KEY (floor_id) REFERENCES floors(id) ON DELETE cascade
+      );
+
+      INSERT INTO campuses (id, name, slug, sort_order, hierarchy_mode)
+        VALUES ('c1', 'Campus', 'campus', 0, 'full');
+      INSERT INTO buildings (id, campus_id, name, slug, sort_order)
+        VALUES ('b1', 'c1', 'Hall', 'hall', 0);
+      INSERT INTO floors (id, campus_id, building_id, name, slug, level, sort_order)
+        VALUES ('f1', 'c1', 'b1', 'Floor 1', 'floor-1', 1, 0);
+      INSERT INTO features (id, floor_id, type, geometry, label, notes, created_at, updated_at)
+        VALUES ('feat1', 'f1', 'exit', '{"type":"point","x":0.1,"y":0.2}', null, null, 0, 0);
+    `);
+
+    expect(
+      sqlite
+        .prepare(
+          `SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'feature_media' LIMIT 1`,
+        )
+        .get(),
+    ).toBeUndefined();
+
+    ensureSchemaCompat(sqlite);
+
+    const table = sqlite
+      .prepare(
+        `SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'feature_media' LIMIT 1`,
+      )
+      .get() as { ok: number } | undefined;
+    expect(table?.ok).toBe(1);
+
+    sqlite
+      .prepare(
+        `INSERT INTO feature_media (id, feature_id, file_path, mime_type, size_bytes, created_at)
+         VALUES ('m1', 'feat1', 'features/feat1/a.png', 'image/png', 12, 0)`,
+      )
+      .run();
+    const row = sqlite
+      .prepare(`SELECT feature_id, mime_type FROM feature_media WHERE id = ?`)
+      .get("m1") as { feature_id: string; mime_type: string };
+    expect(row).toEqual({ feature_id: "feat1", mime_type: "image/png" });
+    sqlite.close();
+  });
 });

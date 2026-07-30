@@ -80,6 +80,14 @@ export type PolygonGeometry = {
 
 export type FeatureGeometry = PointGeometry | PolygonGeometry;
 
+export type FeatureMedia = {
+  id: string;
+  url: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+};
+
 export type MapFeature = {
   id: string;
   type: string;
@@ -88,6 +96,8 @@ export type MapFeature = {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Present on floor detail payloads; omitted from create/patch responses. */
+  media?: FeatureMedia[];
 };
 
 export type FloorPlan = {
