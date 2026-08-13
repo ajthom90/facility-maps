@@ -7,7 +7,7 @@ Self-hosted open-source web app for interactive campus facility safety maps. Pub
 ## Features
 
 - **Public maps** — campus hierarchy (full, floors-only, or single site map) with pan/zoom plans
-- **Safety features** — AWAIR-oriented catalog: exits, assembly points, extinguishers, AEDs, eye wash, spill kits, shutoffs, LOTO, confined spaces, SDS stations, and more
+- **Safety features** — AWAIR-oriented catalog: exits, Code Red/White meeting spots, HVAC units, extinguishers, AEDs, eye wash, spill kits, shutoffs, LOTO, confined spaces, SDS stations, and more
 - **Layer presets** — Evacuation, Fire response, Medical, Spill/chemical, Utilities, Hazards, All (admin-editable)
 - **i18n** — English catalog included; easy to add languages
 - **Admin** — cookie-session login, structure CRUD, plan upload, map editor (pin/polygon), users, presets

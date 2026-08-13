@@ -21,11 +21,13 @@ const FEATURE_TYPES = [
   "electrical_panel",
   "loto_isolation",
   "roof_access",
+  "hvac",
   "hazard",
   "chemical_storage",
   "flammable_storage",
   "high_pressure",
   "co_detector",
+  "smoke_detector",
   "confined_space",
   "sds_station",
 ] as const;

@@ -21,6 +21,7 @@ describe("feature type catalog", () => {
         "electrical_panel",
         "loto_isolation",
         "roof_access",
+        "hvac",
         "hazard",
         "chemical_storage",
         "flammable_storage",
@@ -31,7 +32,7 @@ describe("feature type catalog", () => {
         "sds_station",
       ])
     );
-    expect(FEATURE_TYPES).toHaveLength(24);
+    expect(FEATURE_TYPES).toHaveLength(25);
     // No duplicates
     expect(new Set(FEATURE_TYPES).size).toBe(FEATURE_TYPES.length);
   });

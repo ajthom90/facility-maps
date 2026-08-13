@@ -21,8 +21,8 @@
   },
   "featureTypes": {
     "exit": "Exit",
-    "assembly_point": "Assembly point",
-    "safe_haven": "Safe haven",
+    "assembly_point": "Code Red meeting",
+    "safe_haven": "Code White meeting",
     "fire_extinguisher": "Fire extinguisher",
     "fire_alarm_pull": "Fire alarm pull station",
     "aed": "AED",
@@ -36,6 +36,7 @@
     "electrical_panel": "Electrical panel",
     "loto_isolation": "LOTO isolation point",
     "roof_access": "Roof access",
+    "hvac": "HVAC unit",
     "hazard": "Hazard",
     "chemical_storage": "Chemical storage",
     "flammable_storage": "Flammable storage",

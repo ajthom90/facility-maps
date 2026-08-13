@@ -1,5 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { rectanglePoints } from "../src/lib/geometry";
+import { containPlanBox, rectanglePoints } from "../src/lib/geometry";
+
+describe("containPlanBox", () => {
+  it("fits a landscape plan inside a wider viewport by height", () => {
+    // 792×612 plan in a 1200×640 viewport: height-limited
+    const box = containPlanBox(1200, 640, 792, 612);
+    expect(box.height).toBeCloseTo(640);
+    expect(box.width).toBeCloseTo((792 / 612) * 640);
+    expect(box.width).toBeLessThan(1200);
+  });
+
+  it("fits a landscape plan inside a tall viewport by width", () => {
+    const box = containPlanBox(800, 900, 792, 612);
+    expect(box.width).toBeCloseTo(800);
+    expect(box.height).toBeCloseTo((612 / 792) * 800);
+  });
+
+  it("returns 0×0 when layout or plan size is unknown", () => {
+    expect(containPlanBox(0, 640, 792, 612)).toEqual({ width: 0, height: 0 });
+    expect(containPlanBox(800, 600, 0, 612)).toEqual({ width: 0, height: 0 });
+  });
+});
 
 describe("rectanglePoints", () => {
   it("returns 4 corners TL, TR, BR, BL for top-left then bottom-right", () => {

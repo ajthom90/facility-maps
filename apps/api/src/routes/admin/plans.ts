@@ -7,6 +7,7 @@ import type { Db } from "../../db/client.js";
 import { floorPlans, floors } from "../../db/schema.js";
 import { env } from "../../lib/env.js";
 import { planFileUrl } from "../../lib/floor-payload.js";
+import { readPlanDimensions } from "../../lib/plan-dimensions.js";
 import {
   requireAdmin,
   type AdminVariables,
@@ -79,6 +80,7 @@ export function adminPlansRoutes(getDb: () => Db, uploadDir: string) {
         400
       );
     }
+    const dims = readPlanDimensions(buffer, mimeType);
 
     const ext = EXT_BY_MIME[mimeType] ?? ".bin";
     const filename = `${randomUUID()}${ext}`;
@@ -106,8 +108,8 @@ export function adminPlansRoutes(getDb: () => Db, uploadDir: string) {
           .set({
             filePath: relativePath,
             mimeType,
-            width: null,
-            height: null,
+            width: dims?.width ?? null,
+            height: dims?.height ?? null,
             uploadedAt: new Date(),
           })
           .where(eq(floorPlans.floorId, floorId))
@@ -120,6 +122,8 @@ export function adminPlansRoutes(getDb: () => Db, uploadDir: string) {
             floorId,
             filePath: relativePath,
             mimeType,
+            width: dims?.width ?? null,
+            height: dims?.height ?? null,
           })
           .returning();
         plan = inserted;

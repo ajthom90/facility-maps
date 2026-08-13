@@ -55,6 +55,7 @@ export const FEATURE_TYPES = [
   "electrical_panel",
   "loto_isolation",
   "roof_access",
+  "hvac",
   "hazard",
   "chemical_storage",
   "flammable_storage",

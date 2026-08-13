@@ -12,6 +12,15 @@ Container images: `ghcr.io/ajthom90/facility-maps:<version>` (see README).
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-08-13
+
+### Added
+- **`hvac` feature type** (HVAC unit), included in the `utilities` layer preset — applied to existing deployments by the startup preset seed refresh.
+
+### Changed
+- Relabeled operator-facing names: `assembly_point` → **Code Red meeting** (evacuate), `safe_haven` → **Code White meeting** (shelter in place). Stored type keys are unchanged.
+- **Plan overlay alignment:** the public map and editor now size the floor-plan box to the plan's real aspect ratio (contained in the viewport) instead of stretching a 4:3 box. SVG/PNG/JPEG dimensions are stored on upload. Fixes polygons/pins that lined up while editing but sat off the walls on the public site.
+
 ## [0.4.0] — 2026-07-30
 
 ### Added

@@ -21,6 +21,7 @@ export const FEATURE_TYPES = [
   "electrical_panel",
   "loto_isolation",
   "roof_access",
+  "hvac",
   // Hazards & process / right-to-know
   "hazard",
   "chemical_storage",
@@ -99,6 +100,7 @@ export const PRESET_SEEDS: {
       "electrical_panel",
       "loto_isolation",
       "roof_access",
+      "hvac",
     ],
   },
   {

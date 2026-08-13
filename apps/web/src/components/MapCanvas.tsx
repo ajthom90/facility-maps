@@ -1,12 +1,18 @@
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
 import type { MapFeature } from "../types";
-import { asFeatureGeometry, isPointGeometry, isPolygonGeometry } from "../lib/geometry";
+import {
+  asFeatureGeometry,
+  containPlanBox,
+  isPointGeometry,
+  isPolygonGeometry,
+} from "../lib/geometry";
 import { colorForType } from "../lib/featureStyle";
 
 export type MapCanvasProps = {
@@ -69,6 +75,8 @@ export function MapCanvas({
 }: MapCanvasProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const planBoxRef = useRef<HTMLDivElement>(null);
+  const [viewportSize, setViewportSize] = useState({ w: 0, h: 0 });
+  const [intrinsic, setIntrinsic] = useState<{ w: number; h: number } | null>(null);
   const [view, setView] = useState<ViewState>({ scale: 1, x: 0, y: 0 });
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -96,10 +104,33 @@ export function MapCanvas({
 
   const clampScale = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
 
-  const aspectRatio =
-    planWidth != null && planHeight != null && planWidth > 0 && planHeight > 0
-      ? `${planWidth} / ${planHeight}`
-      : "4 / 3";
+  useEffect(() => {
+    setIntrinsic(null);
+  }, [planUrl]);
+
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      setViewportSize({ w: r.width, h: r.height });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const resolvedPlanW =
+    planWidth != null && planWidth > 0 ? planWidth : (intrinsic?.w ?? 4);
+  const resolvedPlanH =
+    planHeight != null && planHeight > 0 ? planHeight : (intrinsic?.h ?? 3);
+  const planBox = containPlanBox(
+    viewportSize.w,
+    viewportSize.h,
+    resolvedPlanW,
+    resolvedPlanH,
+  );
 
   const seedPinch = useCallback((a: PointerSample, b: PointerSample) => {
     const mid = midpoint(a, b);
@@ -330,10 +361,9 @@ export function MapCanvas({
           ref={planBoxRef}
           style={{
             position: "relative",
-            width: "100%",
-            maxWidth: "100%",
-            maxHeight: "100%",
-            aspectRatio,
+            width: planBox.width > 0 ? planBox.width : "100%",
+            height: planBox.height > 0 ? planBox.height : "100%",
+            flex: "0 0 auto",
           }}
         >
           {planUrl ? (
@@ -341,11 +371,17 @@ export function MapCanvas({
               src={planUrl}
               alt="Floor plan"
               draggable={false}
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                  setIntrinsic({ w: img.naturalWidth, h: img.naturalHeight });
+                }
+              }}
               style={{
                 display: "block",
                 width: "100%",
                 height: "100%",
-                /* Stretch to the plan box so 0–1 overlay coords match the image. */
+                /* Box already matches plan aspect; fill so overlay 0–1 coords stay locked. */
                 objectFit: "fill",
                 pointerEvents: "none",
               }}

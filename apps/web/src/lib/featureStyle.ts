@@ -16,6 +16,7 @@ export const FEATURE_TYPE_COLORS: Record<string, string> = {
   electrical_panel: "#eab308",
   loto_isolation: "#a16207",
   roof_access: "#0d9488",
+  hvac: "#075985",
   hazard: "#ea580c",
   chemical_storage: "#9333ea",
   flammable_storage: "#f97316",

@@ -29,6 +29,23 @@ export function featureIsVisible(feature: MapFeature, visibleTypes: Set<string>)
   return visibleTypes.has(feature.type);
 }
 
+/**
+ * Largest box of plan aspect (pw × ph) that fits inside the viewport.
+ * Returns 0×0 when any input is non-positive so callers can wait for layout.
+ */
+export function containPlanBox(
+  viewportW: number,
+  viewportH: number,
+  planW: number,
+  planH: number,
+): { width: number; height: number } {
+  if (viewportW <= 0 || viewportH <= 0 || planW <= 0 || planH <= 0) {
+    return { width: 0, height: 0 };
+  }
+  const scale = Math.min(viewportW / planW, viewportH / planH);
+  return { width: planW * scale, height: planH * scale };
+}
+
 /** Axis-aligned rectangle from two opposite corners (normalized 0–1). Returns null if degenerate. */
 export function rectanglePoints(
   a: [number, number],
