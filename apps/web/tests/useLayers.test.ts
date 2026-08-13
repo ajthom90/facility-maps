@@ -30,6 +30,7 @@ const FEATURE_TYPES = [
   "smoke_detector",
   "confined_space",
   "sds_station",
+  "room_label",
 ] as const;
 
 const presets: LayerPreset[] = [

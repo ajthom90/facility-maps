@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { containPlanBox, rectanglePoints } from "../src/lib/geometry";
+import {
+  circleRadii,
+  containPlanBox,
+  radiusFromCenter,
+  rectanglePoints,
+  translatePolygon,
+} from "../src/lib/geometry";
 
 describe("containPlanBox", () => {
   it("fits a landscape plan inside a wider viewport by height", () => {
@@ -14,6 +20,31 @@ describe("containPlanBox", () => {
     const box = containPlanBox(800, 900, 792, 612);
     expect(box.width).toBeCloseTo(800);
     expect(box.height).toBeCloseTo((612 / 792) * 800);
+  });
+
+  it("translates a polygon and clamps to 0–1", () => {
+    const moved = translatePolygon(
+      [
+        [0.1, 0.1],
+        [0.2, 0.2],
+      ],
+      0.05,
+      -0.2,
+    );
+    expect(moved[0][0]).toBeCloseTo(0.15);
+    expect(moved[0][1]).toBe(0);
+    expect(moved[1][0]).toBeCloseTo(0.25);
+    expect(moved[1][1]).toBe(0);
+  });
+
+  it("computes circle radii so the shape is visually round", () => {
+    const { rx, ry } = circleRadii(0.1, 792 / 612);
+    expect(rx).toBeCloseTo(0.1);
+    expect(ry).toBeCloseTo(0.1 * (792 / 612));
+  });
+
+  it("measures radius from center in plan-width units", () => {
+    expect(radiusFromCenter(0.5, 0.5, 0.6, 0.5, 1)).toBeCloseTo(0.1);
   });
 
   it("returns 0×0 when layout or plan size is unknown", () => {

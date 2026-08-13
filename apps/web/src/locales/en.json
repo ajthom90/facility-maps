@@ -17,7 +17,8 @@
     "medical": "Medical",
     "spill_chemical": "Spill / chemical",
     "utilities": "Utilities",
-    "hazards": "Hazards"
+    "hazards": "Hazards",
+    "rooms": "Rooms"
   },
   "featureTypes": {
     "exit": "Exit",
@@ -44,7 +45,8 @@
     "co_detector": "CO detector",
     "smoke_detector": "Smoke detector",
     "confined_space": "Confined space",
-    "sds_station": "SDS station"
+    "sds_station": "SDS station",
+    "room_label": "Room label"
   },
   "login": "Log in",
   "logout": "Log out",
@@ -90,15 +92,22 @@
   "uploadPlan": "Upload plan",
   "featureType": "Type",
   "editFeature": "Feature",
-  "selectFeatureHint": "Select a feature on the map to edit label, notes, or type.",
+  "selectFeatureHint": "Select a feature to drag it, reshape it, or edit its label.",
   "complete": "Complete",
   "cancel": "Cancel",
   "vertices": "vertices",
   "rectHint": "Click the opposite corner",
+  "circleHint": "Click the center, then the edge",
+  "layerOrder": "Layer order",
+  "bringForward": "Forward",
+  "sendBackward": "Back",
+  "bringToFront": "Front",
+  "sendToBack": "Bottom",
   "tools": {
     "select": "Select",
     "pin": "Pin",
     "rect": "Rectangle",
-    "polygon": "Polygon"
+    "polygon": "Polygon",
+    "circle": "Circle"
   }
 }

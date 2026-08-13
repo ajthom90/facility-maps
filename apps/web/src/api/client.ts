@@ -58,6 +58,7 @@ export type CreateFeatureInput = {
   geometry: FeatureGeometry;
   label?: string | null;
   notes?: string | null;
+  sortOrder?: number;
 };
 
 export type PatchFeatureInput = {
@@ -65,6 +66,7 @@ export type PatchFeatureInput = {
   geometry?: FeatureGeometry;
   label?: string | null;
   notes?: string | null;
+  sortOrder?: number;
 };
 
 export class ApiError extends Error {

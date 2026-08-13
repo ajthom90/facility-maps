@@ -203,6 +203,7 @@ describe("public APIs", () => {
         "spill_chemical",
         "utilities",
         "hazards",
+        "rooms",
       ])
     );
 

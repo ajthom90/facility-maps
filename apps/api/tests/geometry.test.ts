@@ -26,6 +26,19 @@ describe("parseGeometry", () => {
     expect(g.type).toBe("polygon");
   });
 
+  it("accepts a circle with radius in range", () => {
+    expect(parseGeometry({ type: "circle", x: 0.4, y: 0.5, r: 0.08 })).toEqual({
+      type: "circle",
+      x: 0.4,
+      y: 0.5,
+      r: 0.08,
+    });
+  });
+
+  it("rejects a circle with too-small radius", () => {
+    expect(() => parseGeometry({ type: "circle", x: 0.4, y: 0.5, r: 0.001 })).toThrow();
+  });
+
   it("rejects polygon with fewer than 3 points", () => {
     expect(() =>
       parseGeometry({

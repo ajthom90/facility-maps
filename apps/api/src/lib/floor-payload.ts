@@ -40,6 +40,7 @@ export type FloorPayload = {
     geometry: unknown;
     label: string | null;
     notes: string | null;
+    sortOrder: number;
     createdAt: Date;
     updatedAt: Date;
     media: FeatureMediaPayload[];
@@ -66,12 +67,13 @@ export async function buildFloorPayload(
       geometry: features.geometry,
       label: features.label,
       notes: features.notes,
+      sortOrder: features.sortOrder,
       createdAt: features.createdAt,
       updatedAt: features.updatedAt,
     })
     .from(features)
     .where(eq(features.floorId, floor.id))
-    .orderBy(asc(features.createdAt));
+    .orderBy(asc(features.sortOrder), asc(features.createdAt));
 
   const mediaByFeature = new Map<string, FeatureMediaPayload[]>();
   if (featureRows.length > 0) {

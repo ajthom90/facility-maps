@@ -30,9 +30,10 @@ describe("feature type catalog", () => {
         "smoke_detector",
         "confined_space",
         "sds_station",
+        "room_label",
       ])
     );
-    expect(FEATURE_TYPES).toHaveLength(25);
+    expect(FEATURE_TYPES).toHaveLength(26);
     // No duplicates
     expect(new Set(FEATURE_TYPES).size).toBe(FEATURE_TYPES.length);
   });
@@ -47,6 +48,7 @@ describe("feature type catalog", () => {
       "spill_chemical",
       "utilities",
       "hazards",
+      "rooms",
     ]);
   });
 

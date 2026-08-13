@@ -31,6 +31,8 @@ export const FEATURE_TYPES = [
   "smoke_detector",
   "confined_space",
   "sds_station",
+  // Non-safety annotations
+  "room_label",
 ] as const;
 
 export type FeatureType = (typeof FEATURE_TYPES)[number];
@@ -114,5 +116,10 @@ export const PRESET_SEEDS: {
       "co_detector",
       "confined_space",
     ],
+  },
+  {
+    slug: "rooms",
+    sortOrder: 7,
+    featureTypes: ["room_label"],
   },
 ];

@@ -1,4 +1,10 @@
-import type { FeatureGeometry, MapFeature, PointGeometry, PolygonGeometry } from "../types";
+import type {
+  CircleGeometry,
+  FeatureGeometry,
+  MapFeature,
+  PointGeometry,
+  PolygonGeometry,
+} from "../types";
 
 export function isPointGeometry(g: unknown): g is PointGeometry {
   return (
@@ -19,10 +25,56 @@ export function isPolygonGeometry(g: unknown): g is PolygonGeometry {
   );
 }
 
+export function isCircleGeometry(g: unknown): g is CircleGeometry {
+  return (
+    typeof g === "object" &&
+    g !== null &&
+    (g as CircleGeometry).type === "circle" &&
+    typeof (g as CircleGeometry).x === "number" &&
+    typeof (g as CircleGeometry).y === "number" &&
+    typeof (g as CircleGeometry).r === "number"
+  );
+}
+
 export function asFeatureGeometry(g: unknown): FeatureGeometry | null {
   if (isPointGeometry(g)) return g;
   if (isPolygonGeometry(g)) return g;
+  if (isCircleGeometry(g)) return g;
   return null;
+}
+
+export function clamp01(n: number): number {
+  return Math.min(1, Math.max(0, n));
+}
+
+export function translatePolygon(
+  points: [number, number][],
+  dx: number,
+  dy: number,
+): [number, number][] {
+  return points.map(([x, y]) => [clamp01(x + dx), clamp01(y + dy)]);
+}
+
+/**
+ * Visual-circle radii in viewBox 0–1 space. `r` is a fraction of plan width.
+ * `aspect` is planWidth / planHeight.
+ */
+export function circleRadii(r: number, aspect: number): { rx: number; ry: number } {
+  const a = aspect > 0 ? aspect : 1;
+  return { rx: r, ry: r * a };
+}
+
+/** Distance from center to a point, in plan-width units (matches circle.r). */
+export function radiusFromCenter(
+  cx: number,
+  cy: number,
+  x: number,
+  y: number,
+  aspect: number,
+): number {
+  const a = aspect > 0 ? aspect : 1;
+  const dist = Math.hypot(x - cx, (y - cy) / a);
+  return Math.min(0.5, Math.max(0.008, dist));
 }
 
 export function featureIsVisible(feature: MapFeature, visibleTypes: Set<string>): boolean {

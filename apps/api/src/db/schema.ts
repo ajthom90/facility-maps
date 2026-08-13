@@ -97,6 +97,8 @@ export const features = sqliteTable("features", {
   geometry: text("geometry", { mode: "json" }).notNull(),
   label: text("label"),
   notes: text("notes"),
+  /** Higher paints on top of lower. */
+  sortOrder: integer("sort_order").notNull().default(0),
   createdAt: createdAtColumn(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" })
     .notNull()

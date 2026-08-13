@@ -12,6 +12,17 @@ Container images: `ghcr.io/ajthom90/facility-maps:<version>` (see README).
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-08-13
+
+### Added
+- **Room label** feature type for non-safety room outlines, plus a **Rooms** layer preset.
+- **Circle** drawing tool with a drag handle to resize.
+- Drag pins, move polygons/circles, and pull polygon vertices in the editor (Select tool).
+- **Layer order** controls (front / forward / back / bottom) so overlapping shapes can be stacked.
+
+### Changed
+- Features now have a `sortOrder` field (existing rows default to 0). Higher values paint on top.
+
 ## [0.5.0] — 2026-08-13
 
 ### Added

@@ -48,6 +48,7 @@ export function ensureSchemaCompat(sqlite: SqliteDatabase): void {
 
   // Photo/video attachments on map features (post-0.3 deploy upgrade).
   ensureFeatureMediaTable(sqlite);
+  ensureFeatureSortOrder(sqlite);
 
   if (!tableExists(sqlite, "floors")) {
     return;
@@ -130,6 +131,14 @@ function ensureFloorIndexes(sqlite: SqliteDatabase): void {
  * Create feature_media when features exists but the media table does not.
  * Existing DBs never re-run 0000_init — this is how they get the table.
  */
+function ensureFeatureSortOrder(sqlite: SqliteDatabase): void {
+  if (!tableExists(sqlite, "features")) return;
+  if (hasColumn(sqlite, "features", "sort_order")) return;
+  sqlite.exec(
+    `ALTER TABLE features ADD COLUMN sort_order integer NOT NULL DEFAULT 0`,
+  );
+}
+
 function ensureFeatureMediaTable(sqlite: SqliteDatabase): void {
   if (!tableExists(sqlite, "features")) {
     return;

@@ -55,6 +55,7 @@ CREATE TABLE `features` (
 	`geometry` text NOT NULL,
 	`label` text,
 	`notes` text,
+	`sort_order` integer DEFAULT 0 NOT NULL,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	FOREIGN KEY (`floor_id`) REFERENCES `floors`(`id`) ON UPDATE no action ON DELETE cascade

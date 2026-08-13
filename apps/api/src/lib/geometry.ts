@@ -13,13 +13,23 @@ export const polygonGeometrySchema = z.object({
   points: z.array(z.tuple([unit, unit])).min(3),
 });
 
+/** r is radius as a fraction of plan width (same units as x). */
+export const circleGeometrySchema = z.object({
+  type: z.literal("circle"),
+  x: unit,
+  y: unit,
+  r: z.number().min(0.005).max(0.5),
+});
+
 export const featureGeometrySchema = z.discriminatedUnion("type", [
   pointGeometrySchema,
   polygonGeometrySchema,
+  circleGeometrySchema,
 ]);
 
 export type PointGeometry = z.infer<typeof pointGeometrySchema>;
 export type PolygonGeometry = z.infer<typeof polygonGeometrySchema>;
+export type CircleGeometry = z.infer<typeof circleGeometrySchema>;
 export type FeatureGeometry = z.infer<typeof featureGeometrySchema>;
 
 export function parseGeometry(input: unknown): FeatureGeometry {

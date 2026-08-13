@@ -64,6 +64,7 @@ export const FEATURE_TYPES = [
   "smoke_detector",
   "confined_space",
   "sds_station",
+  "room_label",
 ] as const;
 
 export type FeatureType = (typeof FEATURE_TYPES)[number];
@@ -79,7 +80,15 @@ export type PolygonGeometry = {
   points: [number, number][];
 };
 
-export type FeatureGeometry = PointGeometry | PolygonGeometry;
+export type CircleGeometry = {
+  type: "circle";
+  x: number;
+  y: number;
+  /** Radius as a fraction of plan width. */
+  r: number;
+};
+
+export type FeatureGeometry = PointGeometry | PolygonGeometry | CircleGeometry;
 
 export type FeatureMedia = {
   id: string;
@@ -95,6 +104,7 @@ export type MapFeature = {
   geometry: FeatureGeometry | unknown;
   label: string | null;
   notes: string | null;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
   /** Present on floor detail payloads; omitted from create/patch responses. */

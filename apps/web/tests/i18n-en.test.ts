@@ -28,6 +28,7 @@ const FEATURE_TYPES = [
   "smoke_detector",
   "confined_space",
   "sds_station",
+  "room_label",
 ] as const;
 
 /** Mirrors apps/api/src/lib/feature-types.ts PRESET_SEEDS slugs */
@@ -39,6 +40,7 @@ const PRESET_SLUGS = [
   "spill_chemical",
   "utilities",
   "hazards",
+  "rooms",
 ] as const;
 
 describe("en.json i18n catalog", () => {

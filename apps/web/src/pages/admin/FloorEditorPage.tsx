@@ -11,7 +11,8 @@ import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../../api/client";
 import { MapCanvas } from "../../components/MapCanvas";
-import { rectanglePoints } from "../../lib/geometry";
+import { radiusFromCenter, rectanglePoints } from "../../lib/geometry";
+import type { FeatureGeometry } from "../../types";
 import { mediaKind } from "../../lib/media";
 import {
   FEATURE_TYPES,
@@ -21,7 +22,7 @@ import {
   type MapFeature,
 } from "../../types";
 
-type Tool = "select" | "pin" | "rect" | "polygon";
+type Tool = "select" | "pin" | "rect" | "polygon" | "circle";
 
 export function FloorEditorPage() {
   const { floorId = "" } = useParams<{ floorId: string }>();
@@ -190,6 +191,7 @@ export function FloorEditorPage() {
             floorId,
             type: featureType,
             geometry: { type: "point", x: coords.x, y: coords.y },
+            sortOrder: nextSortOrder(),
           });
           addFeature(created);
           flashSaved();
@@ -216,6 +218,40 @@ export function FloorEditorPage() {
             floorId,
             type: featureType,
             geometry: { type: "polygon", points },
+            sortOrder: nextSortOrder(),
+          });
+          addFeature(created);
+          setDraftPointsSynced([]);
+          flashSaved();
+        } catch (err: unknown) {
+          setError(err instanceof Error ? err.message : t("errorLoad"));
+        } finally {
+          setSaving(false);
+        }
+        return;
+      }
+
+      if (tool === "circle") {
+        const current = draftPointsRef.current;
+        if (current.length === 0) {
+          setDraftPointsSynced([[coords.x, coords.y]]);
+          return;
+        }
+        const [cx, cy] = current[0];
+        const plan = floor.plan;
+        const aspect =
+          plan?.width && plan?.height && plan.width > 0 && plan.height > 0
+            ? plan.width / plan.height
+            : 4 / 3;
+        const r = radiusFromCenter(cx, cy, coords.x, coords.y, aspect);
+        setSaving(true);
+        setError(null);
+        try {
+          const created = await api.createFeature({
+            floorId,
+            type: featureType,
+            geometry: { type: "circle", x: cx, y: cy, r },
+            sortOrder: nextSortOrder(),
           });
           addFeature(created);
           setDraftPointsSynced([]);
@@ -252,6 +288,7 @@ export function FloorEditorPage() {
         floorId,
         type: featureType,
         geometry: { type: "polygon", points },
+        sortOrder: nextSortOrder(),
       });
       addFeature(created);
       setDraftPointsSynced([]);
@@ -267,10 +304,44 @@ export function FloorEditorPage() {
     setDraftPointsSynced([]);
   }
 
+  function nextSortOrder(): number {
+    const orders = floor?.features.map((f) => f.sortOrder ?? 0) ?? [];
+    return orders.length === 0 ? 0 : Math.max(...orders) + 1;
+  }
+
+  function applyLocalGeometry(featureId: string, geometry: FeatureGeometry) {
+    setFloor((prev) =>
+      prev
+        ? {
+            ...prev,
+            features: prev.features.map((f) => (f.id === featureId ? { ...f, geometry } : f)),
+          }
+        : prev,
+    );
+    setSelected((prev) => (prev?.id === featureId ? { ...prev, geometry } : prev));
+  }
+
+  async function commitGeometry(featureId: string, geometry: FeatureGeometry) {
+    applyLocalGeometry(featureId, geometry);
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await api.updateFeature(featureId, { geometry });
+      replaceFeature(updated);
+      flashSaved();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t("errorLoad"));
+      await loadFloor().catch(() => undefined);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveSelectedPatch(patch: {
     label?: string | null;
     notes?: string | null;
     type?: string;
+    sortOrder?: number;
   }) {
     if (!selected) return;
     setSaving(true);
@@ -304,6 +375,31 @@ export function FloorEditorPage() {
     setEditType(next);
     if (!selected || selected.type === next) return;
     await saveSelectedPatch({ type: next });
+  }
+
+  async function nudgeLayer(direction: "forward" | "back" | "front" | "bottom") {
+    if (!selected || !floor) return;
+    const ordered = [...floor.features].sort(
+      (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.createdAt.localeCompare(b.createdAt),
+    );
+    const index = ordered.findIndex((f) => f.id === selected.id);
+    if (index < 0) return;
+
+    let nextOrder = selected.sortOrder ?? 0;
+    if (direction === "front") {
+      nextOrder = Math.max(...ordered.map((f) => f.sortOrder ?? 0)) + 1;
+    } else if (direction === "bottom") {
+      nextOrder = Math.min(...ordered.map((f) => f.sortOrder ?? 0)) - 1;
+    } else if (direction === "forward") {
+      const other = ordered[index + 1];
+      if (!other) return;
+      nextOrder = (other.sortOrder ?? 0) + 1;
+    } else {
+      const other = ordered[index - 1];
+      if (!other) return;
+      nextOrder = (other.sortOrder ?? 0) - 1;
+    }
+    await saveSelectedPatch({ sortOrder: nextOrder });
   }
 
   async function onDeleteSelected() {
@@ -428,7 +524,7 @@ export function FloorEditorPage() {
         }}
       >
         <div style={{ display: "flex", gap: 4 }} role="group" aria-label="Tools">
-          {(["select", "pin", "rect", "polygon"] as Tool[]).map((value) => (
+          {(["select", "pin", "rect", "polygon", "circle"] as Tool[]).map((value) => (
             <button
               key={value}
               type="button"
@@ -471,6 +567,15 @@ export function FloorEditorPage() {
             disabled={uploading}
           />
         </label>
+
+        {tool === "circle" && draftPoints.length === 1 ? (
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <span style={{ fontSize: "0.85rem", color: "#555" }}>{t("circleHint")}</span>
+            <button type="button" onClick={cancelPolygon} style={ghostButtonStyle}>
+              {t("cancel")}
+            </button>
+          </div>
+        ) : null}
 
         {tool === "rect" && draftPoints.length === 1 ? (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -549,7 +654,15 @@ export function FloorEditorPage() {
               selectedFeatureId={selected?.id ?? null}
               onPlanClick={onPlanClick}
               draftPolygonPoints={draftPoints}
+              draftCircle={
+                tool === "circle" && draftPoints.length === 1
+                  ? { x: draftPoints[0][0], y: draftPoints[0][1], r: 0.05 }
+                  : null
+              }
               cursor={cursor}
+              editable
+              onGeometryChange={applyLocalGeometry}
+              onGeometryCommit={(id, geom) => void commitGeometry(id, geom)}
             />
           </div>
 
@@ -680,6 +793,23 @@ export function FloorEditorPage() {
                       disabled={saving}
                     />
                   </label>
+                </div>
+                <div style={fieldStyle}>
+                  <span>{t("layerOrder")}</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    <button type="button" onClick={() => void nudgeLayer("bottom")} style={toolButtonStyle}>
+                      {t("sendToBack")}
+                    </button>
+                    <button type="button" onClick={() => void nudgeLayer("back")} style={toolButtonStyle}>
+                      {t("sendBackward")}
+                    </button>
+                    <button type="button" onClick={() => void nudgeLayer("forward")} style={toolButtonStyle}>
+                      {t("bringForward")}
+                    </button>
+                    <button type="button" onClick={() => void nudgeLayer("front")} style={toolButtonStyle}>
+                      {t("bringToFront")}
+                    </button>
+                  </div>
                 </div>
                 <label style={fieldStyle}>
                   <span>{t("featureType")}</span>

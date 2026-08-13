@@ -18,6 +18,7 @@ const createSchema = z.object({
   geometry: z.unknown(),
   label: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  sortOrder: z.number().int().optional(),
 });
 
 const patchSchema = z.object({
@@ -26,6 +27,7 @@ const patchSchema = z.object({
   geometry: z.unknown().optional(),
   label: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  sortOrder: z.number().int().optional(),
 });
 
 function parseGeometryOrError(input: unknown): FeatureGeometry | { error: string } {
@@ -61,7 +63,7 @@ export function adminFeaturesRoutes(getDb: () => Db) {
       return c.json({ error: geometry.error }, 400);
     }
 
-    const { floorId, type, label, notes } = parsed.data;
+    const { floorId, type, label, notes, sortOrder } = parsed.data;
 
     const [floor] = await getDb()
       .select({ id: floors.id })
@@ -80,6 +82,7 @@ export function adminFeaturesRoutes(getDb: () => Db) {
         geometry,
         label: label ?? null,
         notes: notes ?? null,
+        sortOrder: sortOrder ?? 0,
       })
       .returning();
 
@@ -106,6 +109,7 @@ export function adminFeaturesRoutes(getDb: () => Db) {
       geometry: FeatureGeometry;
       label: string | null;
       notes: string | null;
+      sortOrder: number;
       updatedAt: Date;
     }> = {};
 
@@ -113,6 +117,7 @@ export function adminFeaturesRoutes(getDb: () => Db) {
     if (parsed.data.type !== undefined) updates.type = parsed.data.type;
     if (parsed.data.label !== undefined) updates.label = parsed.data.label;
     if (parsed.data.notes !== undefined) updates.notes = parsed.data.notes;
+    if (parsed.data.sortOrder !== undefined) updates.sortOrder = parsed.data.sortOrder;
     if (parsed.data.geometry !== undefined) {
       const geometry = parseGeometryOrError(parsed.data.geometry);
       if ("error" in geometry) {
