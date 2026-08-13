@@ -1,6 +1,6 @@
 {
   "name": "facility-maps",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "Self-hosted interactive facility safety maps (Minnesota AWAIR-oriented)",
   "license": "MIT",

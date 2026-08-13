@@ -12,6 +12,14 @@ Container images: `ghcr.io/ajthom90/facility-maps:<version>` (see README).
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-08-13
+
+### Added
+- Delete or Backspace removes the selected feature in the floor editor (ignored while typing in a field).
+
+### Changed
+- Pins, vertex handles, labels, and stroke widths stay a constant screen size when zooming. Only the floor plan enlarges; shapes still stay locked to the walls.
+
 ## [0.6.0] — 2026-08-13
 
 ### Added

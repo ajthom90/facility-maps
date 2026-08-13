@@ -19,6 +19,7 @@ import {
   translatePolygon,
 } from "../lib/geometry";
 import { colorForType } from "../lib/featureStyle";
+import { screenSpaceMarkerTransform, screenSpacePlanUnits } from "../lib/screenSpace";
 
 export type MapCanvasProps = {
   planUrl: string | null;
@@ -466,6 +467,12 @@ export function MapCanvas({
 
   const selectedFeature = visibleFeatures.find((f) => f.id === selectedFeatureId) ?? null;
   const selectedGeom = selectedFeature ? asFeatureGeometry(selectedFeature.geometry) : null;
+  const markerTransform = screenSpaceMarkerTransform(view.scale);
+  const stroke = screenSpacePlanUnits(0.004, view.scale);
+  const strokeSelected = screenSpacePlanUnits(0.008, view.scale);
+  const draftStroke = screenSpacePlanUnits(0.006, view.scale);
+  const draftVertexR = screenSpacePlanUnits(0.012, view.scale);
+  const draftDash = `${screenSpacePlanUnits(0.02, view.scale)} ${screenSpacePlanUnits(0.01, view.scale)}`;
 
   return (
     <div
@@ -559,7 +566,7 @@ export function MapCanvas({
                       fill={color}
                       fillOpacity={selected ? 0.4 : 0.22}
                       stroke={color}
-                      strokeWidth={selected ? 0.008 : 0.004}
+                      strokeWidth={selected ? strokeSelected : stroke}
                       style={{ pointerEvents: "auto", cursor: editable ? "move" : "pointer" }}
                       onPointerDown={(ev) => {
                         if (editable) beginGeomDrag(ev, feature, "polygon");
@@ -577,7 +584,7 @@ export function MapCanvas({
                         position: "absolute",
                         left: `${cx * 100}%`,
                         top: `${cy * 100}%`,
-                        transform: "translate(-50%, -50%)",
+                        transform: markerTransform,
                         pointerEvents: "none",
                         fontSize: 12,
                         fontWeight: 700,
@@ -610,7 +617,7 @@ export function MapCanvas({
                       fill={color}
                       fillOpacity={selected ? 0.4 : 0.22}
                       stroke={color}
-                      strokeWidth={selected ? 0.008 : 0.004}
+                      strokeWidth={selected ? strokeSelected : stroke}
                       style={{ pointerEvents: "auto", cursor: editable ? "move" : "pointer" }}
                       onPointerDown={(ev) => {
                         if (editable) beginGeomDrag(ev, feature, "circle");
@@ -628,7 +635,7 @@ export function MapCanvas({
                         position: "absolute",
                         left: `${geom.x * 100}%`,
                         top: `${geom.y * 100}%`,
-                        transform: "translate(-50%, -50%)",
+                        transform: markerTransform,
                         pointerEvents: "none",
                         fontSize: 12,
                         fontWeight: 700,
@@ -662,7 +669,7 @@ export function MapCanvas({
                     position: "absolute",
                     left: `${geom.x * 100}%`,
                     top: `${geom.y * 100}%`,
-                    transform: "translate(-50%, -50%)",
+                    transform: markerTransform,
                     width: selected ? 22 : 18,
                     height: selected ? 22 : 18,
                     borderRadius: "50%",
@@ -690,7 +697,7 @@ export function MapCanvas({
                     position: "absolute",
                     left: `${px * 100}%`,
                     top: `${py * 100}%`,
-                    transform: "translate(-50%, -50%)",
+                    transform: markerTransform,
                     width: 12,
                     height: 12,
                     borderRadius: 2,
@@ -713,7 +720,7 @@ export function MapCanvas({
                 position: "absolute",
                 left: `${(selectedGeom.x + selectedGeom.r) * 100}%`,
                 top: `${selectedGeom.y * 100}%`,
-                transform: "translate(-50%, -50%)",
+                transform: markerTransform,
                 width: 12,
                 height: 12,
                 borderRadius: "50%",
@@ -745,12 +752,20 @@ export function MapCanvas({
                   points={draftPolygonPoints.map(([px, py]) => `${px},${py}`).join(" ")}
                   fill="none"
                   stroke="#111"
-                  strokeWidth={0.006}
-                  strokeDasharray="0.02 0.01"
+                  strokeWidth={draftStroke}
+                  strokeDasharray={draftDash}
                 />
               ) : null}
               {draftPolygonPoints.map(([px, py], i) => (
-                <circle key={`draft-${i}`} cx={px} cy={py} r={0.012} fill="#111" stroke="#fff" strokeWidth={0.004} />
+                <circle
+                  key={`draft-${i}`}
+                  cx={px}
+                  cy={py}
+                  r={draftVertexR}
+                  fill="#111"
+                  stroke="#fff"
+                  strokeWidth={stroke}
+                />
               ))}
             </svg>
           ) : null}
@@ -776,8 +791,8 @@ export function MapCanvas({
                 ry={circleRadii(draftCircle.r, planAspect).ry}
                 fill="none"
                 stroke="#111"
-                strokeWidth={0.006}
-                strokeDasharray="0.02 0.01"
+                strokeWidth={draftStroke}
+                strokeDasharray={draftDash}
               />
             </svg>
           ) : null}

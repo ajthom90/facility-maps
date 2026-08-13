@@ -11,6 +11,7 @@ import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../../api/client";
 import { MapCanvas } from "../../components/MapCanvas";
+import { shouldHandleFeatureDeleteKey } from "../../lib/editorKeys";
 import { radiusFromCenter, rectanglePoints } from "../../lib/geometry";
 import type { FeatureGeometry } from "../../types";
 import { mediaKind } from "../../lib/media";
@@ -402,21 +403,35 @@ export function FloorEditorPage() {
     await saveSelectedPatch({ sortOrder: nextOrder });
   }
 
-  async function onDeleteSelected() {
-    if (!selected) return;
-    if (!window.confirm(`${t("delete")}?`)) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await api.deleteFeature(selected.id);
-      removeFeature(selected.id);
-      flashSaved();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t("errorLoad"));
-    } finally {
-      setSaving(false);
+  const onDeleteSelected = useCallback(
+    async (opts?: { confirm?: boolean }) => {
+      if (!selected) return;
+      if (opts?.confirm !== false && !window.confirm(`${t("delete")}?`)) return;
+      setSaving(true);
+      setError(null);
+      try {
+        await api.deleteFeature(selected.id);
+        removeFeature(selected.id);
+        flashSaved();
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : t("errorLoad"));
+      } finally {
+        setSaving(false);
+      }
+    },
+    [selected, t, flashSaved],
+  );
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (!shouldHandleFeatureDeleteKey(e)) return;
+      if (tool !== "select" || !selected || saving) return;
+      e.preventDefault();
+      void onDeleteSelected({ confirm: false });
     }
-  }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [tool, selected, saving, onDeleteSelected]);
 
   async function onUploadMedia(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
